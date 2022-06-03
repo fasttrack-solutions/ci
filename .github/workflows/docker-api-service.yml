@@ -1,0 +1,63 @@
+name: Docker Build Service & API
+
+on:
+  workflow_call:
+    inputs:
+      image:
+        required: true
+        type: string
+      tag-prefix-service:
+        required: true
+        type: string  
+        default: "service-"  
+      tag-prefix-api:
+        required: true
+        type: string
+        default: "api-"                
+      dockerfile-service:
+        required: true
+        type: string
+        default: "./deployments/docker/Service.Dockerfile"    
+      dockerfile-api:
+        required: true
+        type: string  
+        default: "./deployments/docker/API.Dockerfile"                      
+    secrets:
+      FT_SSH_KEY:
+        required: true
+      FT_BITBUCKET_KNOWN_HOSTS:
+        required: true 
+      FT_ECR_AWS_ACCESS_KEY_ID:
+        required: true
+      FT_ECR_AWS_SECRET_ACCESS_KEY:
+        required: true     
+
+jobs:
+  build-service:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v1    
+    - name: Build & Publish
+      uses: fasttrack-solutions/ci/.github/actions/build-publish-docker@main
+      with:
+        image: ${{ inputs.image }}
+        tag-prefix: ${{ inputs.tag-prefix-service }}
+        dockerfile: ${{ inputs.dockerfile-service }}
+        ssh_key: ${{ secrets.FT_SSH_KEY }}
+        ssh_known_hosts: ${{ secrets.FT_BITBUCKET_KNOWN_HOSTS }}    
+        ecr_aws_access_key_id: ${{ secrets.FT_ECR_AWS_ACCESS_KEY_ID }}
+        ecr_aws_secret_key: ${{ secrets.FT_ECR_AWS_SECRET_ACCESS_KEY }}
+  build-api:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v1    
+    - name: Build & Publish
+      uses: fasttrack-solutions/ci/.github/actions/build-publish-docker@main
+      with:
+        image: ${{ inputs.image }}
+        tag-prefix: ${{ inputs.tag-prefix-api }}
+        dockerfile: ${{ inputs.dockerfile-api }}
+        ssh_key: ${{ secrets.FT_SSH_KEY }}
+        ssh_known_hosts: ${{ secrets.FT_BITBUCKET_KNOWN_HOSTS }}    
+        ecr_aws_access_key_id: ${{ secrets.FT_ECR_AWS_ACCESS_KEY_ID }}
+        ecr_aws_secret_key: ${{ secrets.FT_ECR_AWS_SECRET_ACCESS_KEY }}        
