@@ -1,0 +1,76 @@
+name: "Build & Publish"
+description: "Build and publish the Docker image"
+inputs:
+  image:
+    description: "service to build"
+    required: true
+    default: ""
+  tag-prefix:
+    description: "tag prefix"
+    required: true
+    default: ""    
+  dockerfile:
+    description: "docker file"
+    required: true
+    default: ""
+  ssh_key:    
+    description: "ssh key"
+    required: true
+    default: ""
+  ssh_known_hosts:
+    description: "ssh known hosts"
+    required: true
+    default: ""
+  ecr_aws_access_key_id:
+    description: "ecr aws access key id"
+    required: true
+    default: ""      
+  ecr_aws_secret_key:
+    description: "ecr aws secret key"
+    required: true
+    default: ""          
+     
+  
+runs:
+  using: "composite"
+  steps:
+    - uses: actions/checkout@v2
+    - name: Install SSH Key
+      # You may pin to the exact commit or the version.
+      # uses: shimataro/ssh-key-action@3c9b0fc6f2d223b8450b02a0445f526350fc73e0
+      uses: shimataro/ssh-key-action@v2.3.1
+      with:
+        key: ${{ inputs.ssh_key }}
+        known_hosts: ${{ inputs.ssh_known_hosts }}    
+    - name: Copy SSH Key
+      shell: bash
+      run: cp ~/.ssh/id_rsa .
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v1
+      with:
+          aws-access-key-id: ${{ inputs.ecr_aws_access_key_id }}
+          aws-secret-access-key: ${{ inputs.ecr_aws_secret_key }}
+          aws-region: eu-west-1
+    - name: Login to Amazon ECR
+      id: login-ecr
+      uses: aws-actions/amazon-ecr-login@v1
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v1
+    - name: Build and push API
+      if: ${{ github.ref == 'refs/heads/main' }}
+      uses: docker/build-push-action@v2
+      with:
+          context: .
+          platforms: linux/amd64
+          push: true
+          tags: ${{ steps.login-ecr.outputs.registry }}/${{inputs.image}}:${{inputs.tagprefix}}oneclick-${{ github.run_number }}
+          file: ${{inputs.dockerfile}}
+    - name: Build and push API PR
+      if: ${{ github.ref != 'refs/heads/main' }}
+      uses: docker/build-push-action@v2
+      with:
+          context: .
+          platforms: linux/amd64
+          push: true
+          tags: ${{ steps.login-ecr.outputs.registry }}/${{inputs.image}}:${{inputs.tagprefix}}oneclickpr-${{github.event.number}}-${{ github.run_number }}
+          file: ${{inputs.dockerfile}}

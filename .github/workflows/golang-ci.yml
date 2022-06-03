@@ -1,0 +1,58 @@
+name: Golang-CI
+
+on:
+  workflow_call:
+    inputs:
+      go-version:
+        required: true
+        type: string
+        default: "~1.18"
+    secrets:
+      FT_SSH_KEY:
+        required: true
+      FT_BITBUCKET_KNOWN_HOSTS:
+        required: true        
+
+jobs:
+
+  build:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Git config setup for bitbucket
+      run: git config --global url."git@bitbucket.org:fasttrackdevteam".insteadOf "https://bitbucket.org/fasttrackdevteam"
+
+    - name: Git config setup for github
+      run: git config --global url."git@github.com:".insteadOf https://github.com/
+
+    - name: Setting private repos for golang
+      run: export GOPRIVATE=bitbucket.org/fasttrackdevteam,github.com/fasttrack-solutions
+
+    - name: Install SSH Key
+      uses: shimataro/ssh-key-action@v2.3.1
+      with:
+        key: ${{ secrets.FT_SSH_KEY }}
+        known_hosts: ${{ secrets.FT_BITBUCKET_KNOWN_HOSTS }}
+    - name: Setup Golang with cache
+      uses: magnetikonline/action-golang-cache@v2
+      with:
+       go-version: ${{ inputs.go-version }}
+
+    - name: Build
+      run: go build -v ./...
+
+    - name: Test Dir
+      run: mkdir test-reports
+
+    - name: Get gotestsum
+      run: go get gotest.tools/gotestsum
+
+    - name: Run Test
+      run: gotestsum --junitfile test-reports/report.xml
+
+    - name: Publish Unit Test Results
+      uses: EnricoMi/publish-unit-test-result-action@v1
+      if: always()
+      with:
+        files: test-reports/*.xml
