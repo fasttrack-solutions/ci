@@ -7,8 +7,9 @@ on:
         required: true
         type: string
       tag-prefix:
-        required: true
-        type: string        
+        required: false
+        type: string
+        default: ""        
       dockerfile:
         required: true
         type: string  

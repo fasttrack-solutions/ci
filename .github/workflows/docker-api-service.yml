@@ -7,19 +7,19 @@ on:
         required: true
         type: string
       tag-prefix-service:
-        required: true
+        required: false
         type: string  
         default: "service-"  
       tag-prefix-api:
-        required: true
+        required: false
         type: string
         default: "api-"                
       dockerfile-service:
-        required: true
+        required: false
         type: string
         default: "./deployments/docker/Service.Dockerfile"    
       dockerfile-api:
-        required: true
+        required: false
         type: string  
         default: "./deployments/docker/API.Dockerfile"                      
     secrets:
