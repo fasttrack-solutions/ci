@@ -1,6 +1,10 @@
 name: "Build & Publish"
 description: "Build and publish the Docker image"
 inputs:
+  start-build-from:
+    description: "the build number to start from"
+    required: false
+    default: "0"
   image:
     description: "service to build"
     required: true
@@ -56,6 +60,15 @@ runs:
       uses: aws-actions/amazon-ecr-login@v1
     - name: Set up Docker Buildx
       uses: docker/setup-buildx-action@v1
+    - name: Set tag
+      shell: bash
+      env:
+        RUN_NUMBER: ${{github.run_number}}
+        START_FROM: ${{inputs.start-build-from}}
+      run: |
+        echo $RUN_NUMBER
+        echo $(($RUN_NUMBER+$START_FROM))
+        echo BUILD_NUMBER=$(($RUN_NUMBER+$START_FROM)) >> $GITHUB_ENV
     - name: Cache Docker layers
       uses: actions/cache@v2
       with:
@@ -70,7 +83,7 @@ runs:
           context: .
           platforms: linux/amd64
           push: true
-          tags: ${{ steps.login-ecr.outputs.registry }}/${{inputs.image}}:${{inputs.tagprefix}}oneclick-${{ github.run_number }}
+          tags: ${{ steps.login-ecr.outputs.registry }}/${{inputs.image}}:${{inputs.tagprefix}}oneclick-${{ env.BUILD_NUMBER }}
           file: ${{inputs.dockerfile}}
           cache-from: type=local,src=/tmp/.buildx-cache
           cache-to: type=local,dest=/tmp/.buildx-cache-new
@@ -81,7 +94,7 @@ runs:
           context: .
           platforms: linux/amd64
           push: true
-          tags: ${{ steps.login-ecr.outputs.registry }}/${{inputs.image}}:${{inputs.tagprefix}}oneclickpr-${{github.event.number}}-${{ github.run_number }}
+          tags: ${{ steps.login-ecr.outputs.registry }}/${{inputs.image}}:${{inputs.tagprefix}}oneclickpr-${{github.event.number}}-${{ env.BUILD_NUMBER }}
           file: ${{inputs.dockerfile}}
           cache-from: type=local,src=/tmp/.buildx-cache
           cache-to: type=local,dest=/tmp/.buildx-cache-new
