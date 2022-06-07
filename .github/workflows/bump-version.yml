@@ -8,7 +8,7 @@
         type: string  
         default: "0"
       secrets:
-          GITHUB_TOKEN:
+          token:
             required: true
   
   jobs:
@@ -30,14 +30,14 @@
         id: tag_version
         uses: mathieudutour/github-tag-action@v6.0
         with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
+          github_token: ${{ secrets.token }}
           custom_tag: oneclick-${{ env.BUILD_NUMBER }}
           tag_prefix: ""
       - name: Create a GitHub release 
         if: ${{ github.ref == 'refs/heads/main' }}
         uses: actions/create-release@v1
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.token }}
         with:
             tag_name: ${{ steps.tag_version.outputs.new_tag }}
             release_name: Release ${{ steps.tag_version.outputs.new_tag }}
