@@ -69,6 +69,11 @@ runs:
         echo $RUN_NUMBER
         echo $(($RUN_NUMBER+$START_FROM))
         echo BUILD_NUMBER=$(($RUN_NUMBER+$START_FROM)) >> $GITHUB_ENV
+    - uses: jwalton/gh-find-current-pr@v1
+      id: findPr
+      with:
+        # Can be "open", "closed", or "all".  Defaults to "open".
+        state: open         
     - name: Cache Docker layers
       uses: actions/cache@v2
       with:
@@ -88,13 +93,13 @@ runs:
           cache-from: type=local,src=/tmp/.buildx-cache
           cache-to: type=local,dest=/tmp/.buildx-cache-new
     - name: Build and push PR
-      if: ${{ github.ref != 'refs/heads/main' }}
+      if: github.ref != 'refs/heads/master' && steps.findPr.outputs.number
       uses: docker/build-push-action@v2
       with:
           context: .
           platforms: linux/amd64
           push: true
-          tags: ${{ steps.login-ecr.outputs.registry }}/${{inputs.image}}:${{inputs.tagprefix}}oneclickpr-${{github.event.number}}-${{ env.BUILD_NUMBER }}
+          tags: ${{ steps.login-ecr.outputs.registry }}/${{inputs.image}}:${{inputs.tagprefix}}oneclickpr-${{ steps.findPr.outputs.pr }}-${{ env.BUILD_NUMBER }}
           file: ${{inputs.dockerfile}}
           cache-from: type=local,src=/tmp/.buildx-cache
           cache-to: type=local,dest=/tmp/.buildx-cache-new
