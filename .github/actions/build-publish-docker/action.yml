@@ -88,7 +88,7 @@ runs:
           context: .
           platforms: linux/amd64
           push: true
-          tags: ${{ steps.login-ecr.outputs.registry }}/${{inputs.image}}:${{inputs.tagprefix}}oneclick-${{ env.BUILD_NUMBER }}
+          tags: ${{ steps.login-ecr.outputs.registry }}/${{inputs.image}}:${{inputs.tag-prefix}}oneclick-${{ env.BUILD_NUMBER }}
           file: ${{inputs.dockerfile}}
           cache-from: type=local,src=/tmp/.buildx-cache
           cache-to: type=local,dest=/tmp/.buildx-cache-new
@@ -99,7 +99,7 @@ runs:
           context: .
           platforms: linux/amd64
           push: true
-          tags: ${{ steps.login-ecr.outputs.registry }}/${{inputs.image}}:${{inputs.tagprefix}}oneclickpr-${{ steps.findPr.outputs.pr }}-${{ env.BUILD_NUMBER }}
+          tags: ${{ steps.login-ecr.outputs.registry }}/${{inputs.image}}:${{inputs.tag-prefix}}oneclickpr-${{ steps.findPr.outputs.pr }}-${{ env.BUILD_NUMBER }}
           file: ${{inputs.dockerfile}}
           cache-from: type=local,src=/tmp/.buildx-cache
           cache-to: type=local,dest=/tmp/.buildx-cache-new
