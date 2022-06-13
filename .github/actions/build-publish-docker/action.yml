@@ -69,10 +69,14 @@ runs:
       env:
         RUN_NUMBER: ${{github.run_number}}
         START_FROM: ${{inputs.start-build-from}}
+        REF: ${{ github.ref }}
+        ACTUAL_REF: refs/heads/${{ inputs.default_branch }}
       run: |
         echo $RUN_NUMBER
         echo $(($RUN_NUMBER+$START_FROM))
         echo BUILD_NUMBER=$(($RUN_NUMBER+$START_FROM)) >> $GITHUB_ENV
+        echo REF
+        echo ACTUAL_REF
     - uses: jwalton/gh-find-current-pr@v1
       id: findPr
       with:
@@ -86,7 +90,7 @@ runs:
          restore-keys: |
            ${{ runner.os }}-buildx-      
     - name: Build and push
-      if: ${{ github.ref == 'refs/heads/${{ github.event.repository.default_branch }}' }}
+      if: ${{ github.ref == 'refs/heads/${{ inputs.default_branch }}' }}
       uses: docker/build-push-action@v2
       with:
           context: .
