@@ -32,7 +32,11 @@ inputs:
   ecr_aws_secret_key:
     description: "ecr aws secret key"
     required: true
-    default: ""          
+    default: ""
+  default_branch:
+    description: "default branch"
+    required: false
+    default: "main"          
      
   
 runs:
@@ -93,7 +97,7 @@ runs:
           cache-from: type=local,src=/tmp/.buildx-cache
           cache-to: type=local,dest=/tmp/.buildx-cache-new
     - name: Build and push PR
-      if: github.ref != 'refs/heads/${{ github.event.repository.default_branch }}' && steps.findPr.outputs.number
+      if: github.ref != 'refs/heads/${{ inputs.default_branch }}' && steps.findPr.outputs.number
       uses: docker/build-push-action@v2
       with:
           context: .
