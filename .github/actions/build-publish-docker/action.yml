@@ -75,8 +75,8 @@ runs:
         echo $RUN_NUMBER
         echo $(($RUN_NUMBER+$START_FROM))
         echo BUILD_NUMBER=$(($RUN_NUMBER+$START_FROM)) >> $GITHUB_ENV
-        echo REF
-        echo ACTUAL_REF
+        echo REF=$REF
+        echo ACTUAL_REF=$ACTUAL_REF
     - uses: jwalton/gh-find-current-pr@v1
       id: findPr
       with:
