@@ -101,7 +101,7 @@ runs:
           cache-from: type=local,src=/tmp/.buildx-cache
           cache-to: type=local,dest=/tmp/.buildx-cache-new
     - name: Build and push PR
-      if: github.ref != 'refs/heads/${{ inputs.default_branch }}' && steps.findPr.outputs.number
+      if: github.ref != 'refs/heads/${{ inputs.default_branch }}' && steps.findPr.outputs.number > 0
       uses: docker/build-push-action@v2
       with:
           context: .
