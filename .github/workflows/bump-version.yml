@@ -9,7 +9,7 @@ on:
       default_branch:
         required: false
         type: string
-        default: "main"          
+        default: "main"
     secrets:
       token:
         required: true
@@ -18,28 +18,17 @@ jobs:
   bump-version:
     runs-on: ubuntu-latest
     steps:
-      - name: Set tag
-        shell: bash
-        env:
-          RUN_NUMBER: ${{github.run_number}}
-          START_FROM: ${{inputs.start-build-from}}
-        run: |
-          echo $RUN_NUMBER
-          echo $(($RUN_NUMBER+$START_FROM))
-          echo BUILD_NUMBER=$(($RUN_NUMBER+$START_FROM)) >> $GITHUB_ENV
       - name: Bump version and push tag
-        if: github.ref == 'refs/heads/${{ inputs.default_branch }}'
+        if: ${{ github.ref == 'refs/heads/master' }}
         id: tag_version
-        uses: mathieudutour/github-tag-action@v6.0
+        uses: mathieudutour/github-tag-action@v5.6
         with:
-          github_token: ${{ secrets.token }}
-          custom_tag: oneclick-${{ env.BUILD_NUMBER }}
-          tag_prefix: ""
+          github_token: ${{ secrets.GITHUB_TOKEN }}
       - name: Create a GitHub release
-        if: github.ref == 'refs/heads/${{ inputs.default_branch }}'
+        if: ${{ github.ref == 'refs/heads/master' }}
         uses: actions/create-release@v1
         env:
-          GITHUB_TOKEN: ${{ secrets.token }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           tag_name: ${{ steps.tag_version.outputs.new_tag }}
           release_name: Release ${{ steps.tag_version.outputs.new_tag }}
