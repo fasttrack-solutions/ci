@@ -11,6 +11,10 @@ on:
         required: false
         type: boolean
         default: false
+      go-test-timeout:
+        required: false
+        type: string
+        default: "10m"
     secrets:
       FT_SSH_KEY:
         required: true
@@ -54,7 +58,7 @@ jobs:
       run: go get gotest.tools/gotestsum
 
     - name: Run Test
-      run: gotestsum --junitfile test-reports/report.xml
+      run: gotestsum --junitfile test-reports/report.xml -- -timeout ${{ inputs.go-test-timeout }}
 
     - name: Publish Unit Test Results
       uses: EnricoMi/publish-unit-test-result-action@v1
