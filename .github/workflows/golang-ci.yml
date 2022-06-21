@@ -7,6 +7,10 @@ on:
         required: true
         type: string
         default: "~1.18"
+      go-skip-build:
+        required: false
+        type: boolean
+        default: false
     secrets:
       FT_SSH_KEY:
         required: true
@@ -40,6 +44,7 @@ jobs:
        go-version: ${{ inputs.go-version }}
 
     - name: Build
+      if: inputs.go-skip-build == false
       run: go build -v ./...
 
     - name: Test Dir
