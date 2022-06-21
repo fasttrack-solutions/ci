@@ -58,7 +58,7 @@ jobs:
       run: go get gotest.tools/gotestsum
 
     - name: Run Test
-      run: gotestsum --junitfile test-reports/report.xml -- -timeout ${{ inputs.go-test-timeout }}
+      run: gotestsum --junitfile test-reports/report.xml -- -timeout ${{ inputs.go-test-timeout }} ./...
 
     - name: Publish Unit Test Results
       uses: EnricoMi/publish-unit-test-result-action@v1
