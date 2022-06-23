@@ -32,11 +32,7 @@ inputs:
   ecr_aws_secret_key:
     description: "ecr aws secret key"
     required: true
-    default: ""
-  default_branch:
-    description: "default branch"
-    required: false
-    default: "main"          
+    default: ""         
      
   
 runs:
@@ -69,14 +65,10 @@ runs:
       env:
         RUN_NUMBER: ${{github.run_number}}
         START_FROM: ${{inputs.start-build-from}}
-        REF: ${{ github.ref }}
-        ACTUAL_REF: refs/heads/${{ inputs.default_branch }}
       run: |
         echo $RUN_NUMBER
         echo $(($RUN_NUMBER+$START_FROM))
         echo BUILD_NUMBER=$(($RUN_NUMBER+$START_FROM)) >> $GITHUB_ENV
-        echo REF=$REF
-        echo ACTUAL_REF=$ACTUAL_REF
     - uses: jwalton/gh-find-current-pr@v1
       id: findPr
       with:
@@ -90,7 +82,7 @@ runs:
          restore-keys: |
            ${{ runner.os }}-buildx-      
     - name: Build and push
-      if: github.ref == 'refs/heads/${{ inputs.default_branch }}'
+      if: github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main'
       uses: docker/build-push-action@v3
       with:
           context: .
@@ -101,7 +93,7 @@ runs:
           cache-from: type=local,src=/tmp/.buildx-cache
           cache-to: type=local,dest=/tmp/.buildx-cache-new
     - name: Build and push PR
-      if: github.ref != 'refs/heads/${{ inputs.default_branch }}' && steps.findPr.outputs.number > 0
+      if: (github.ref != 'refs/heads/master' || github.ref != 'refs/heads/main') && steps.findPr.outputs.number > 0
       uses: docker/build-push-action@v3
       with:
           context: .

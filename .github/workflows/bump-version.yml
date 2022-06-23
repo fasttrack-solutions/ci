@@ -5,11 +5,7 @@ on:
       start-build-from:
         required: false
         type: string
-        default: "0"
-      default_branch:
-        required: false
-        type: string
-        default: "main"          
+        default: "0"         
     secrets:
       token:
         required: true
@@ -28,7 +24,7 @@ jobs:
           echo $(($RUN_NUMBER+$START_FROM))
           echo BUILD_NUMBER=$(($RUN_NUMBER+$START_FROM)) >> $GITHUB_ENV
       - name: Bump version and push tag
-        if: github.ref == 'refs/heads/${{ inputs.default_branch }}'
+        if: github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main'
         id: tag_version
         uses: mathieudutour/github-tag-action@v6.0
         with:
@@ -36,7 +32,7 @@ jobs:
           custom_tag: oneclick-${{ env.BUILD_NUMBER }}
           tag_prefix: ""
       - name: Create a GitHub release
-        if: github.ref == 'refs/heads/${{ inputs.default_branch }}'
+        if: github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main'
         uses: actions/create-release@v1
         env:
           GITHUB_TOKEN: ${{ secrets.token }}
