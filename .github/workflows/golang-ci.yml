@@ -21,9 +21,9 @@ on:
         default: "5.6"
     secrets:
       FT_SSH_KEY:
-        required: false
+        required: true
       FT_BITBUCKET_KNOWN_HOSTS:
-        required: false        
+        required: true        
 
 jobs:
 
@@ -42,7 +42,6 @@ jobs:
       run: export GOPRIVATE=bitbucket.org/fasttrackdevteam,github.com/fasttrack-solutions
 
     - name: Install SSH Key
-      if: ${{secrets.FT_SSH_KEY != ""}} 
       uses: shimataro/ssh-key-action@v2.3.1
       with:
         key: ${{ secrets.FT_SSH_KEY }}
