@@ -23,7 +23,7 @@ on:
       FT_SSH_KEY:
         required: false
       FT_BITBUCKET_KNOWN_HOSTS:
-        required: true        
+        required: false        
 
 jobs:
 
