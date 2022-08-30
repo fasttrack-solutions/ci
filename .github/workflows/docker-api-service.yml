@@ -39,10 +39,7 @@ on:
 jobs:
   build-service:
     runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@v3
-    - name: init git submodules  
-      run: git submodule update --init        
+    steps:     
     - name: Build & Publish
       uses: fasttrack-solutions/ci/.github/actions/build-publish-docker@main
       with:
@@ -56,8 +53,7 @@ jobs:
         start-build-from: ${{ inputs.start-build-from }}
   build-api:
     runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@v3       
+    steps:    
     - name: Build & Publish
       uses: fasttrack-solutions/ci/.github/actions/build-publish-docker@main
       with:

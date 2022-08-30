@@ -38,17 +38,16 @@ inputs:
 runs:
   using: "composite"
   steps:
-    - uses: actions/checkout@v3   
+    - uses: actions/checkout@v3
+      with:
+        submodules: recursive   
     - name: Install SSH Key
       # You may pin to the exact commit or the version.
       # uses: shimataro/ssh-key-action@3c9b0fc6f2d223b8450b02a0445f526350fc73e0
       uses: shimataro/ssh-key-action@v2.3.1
       with:
         key: ${{ inputs.ssh_key }}
-        known_hosts: ${{ inputs.ssh_known_hosts }}    
-    - name: init git submodules  
-      shell: bash
-      run: git submodule update --init         
+        known_hosts: ${{ inputs.ssh_known_hosts }}         
     - name: Copy SSH Key
       shell: bash
       run: cp ~/.ssh/id_rsa .
