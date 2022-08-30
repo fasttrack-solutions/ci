@@ -57,9 +57,7 @@ jobs:
   build-api:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v3  
-    - name: init git submodules  
-      run: git submodule update --init      
+    - uses: actions/checkout@v3       
     - name: Build & Publish
       uses: fasttrack-solutions/ci/.github/actions/build-publish-docker@main
       with:
