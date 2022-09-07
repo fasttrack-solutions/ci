@@ -36,11 +36,15 @@ jobs:
         with:
           key: ${{ secrets.FT_SSH_KEY }}
           known_hosts: ${{ secrets.FT_BITBUCKET_KNOWN_HOSTS }}    
-      - name: Set up Go
-        uses: actions/setup-go@v3
+      - name: Setup Golang with cache
+        uses: magnetikonline/action-golang-cache@v2
         with:
-          go-version: 1.17              
+         go-version: ${{ inputs.go-version }}            
       - name: Install go sec
-        run: go get github.com/securego/gosec/v2/cmd/gosec@master
+        run: go install github.com/securego/gosec/v2/cmd/gosec@master
       - name: Run gosec
-        run: gosec ./...
+        run: GO111MODULE=on gosec ./...
+      - name: Install govulncheck
+        run: go install golang.org/x/vuln/cmd/govulncheck@latest
+      - name: Run govulncheck
+        run: GO111MODULE=on govulncheck ./...
