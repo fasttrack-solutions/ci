@@ -107,6 +107,17 @@ runs:
           file: ${{inputs.dockerfile}}
           cache-from: type=local,src=/tmp/.buildx-cache
           cache-to: type=local,dest=/tmp/.buildx-cache-new
+    - name: Build and push Release
+      if: contains(github.ref, "release")
+      uses: docker/build-push-action@v3
+      with:
+          context: .
+          platforms: linux/amd64
+          push: true
+          tags: ${{ steps.login-ecr.outputs.registry }}/${{inputs.image}}:${{inputs.tag-prefix}}oneclickrelease-${{ env.BUILD_NUMBER }}
+          file: ${{inputs.dockerfile}}
+          cache-from: type=local,src=/tmp/.buildx-cache
+          cache-to: type=local,dest=/tmp/.buildx-cache-new          
       # This ugly bit is necessary if you don't want your cache to grow forever
       # until it hits GitHub's limit of 5GB.
       # Temp fix
