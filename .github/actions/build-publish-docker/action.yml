@@ -108,7 +108,7 @@ runs:
           cache-from: type=local,src=/tmp/.buildx-cache
           cache-to: type=local,dest=/tmp/.buildx-cache-new
     - name: Build and push Release
-      if: contains(github.ref, 'release') || contains(github.ref, 'Release')
+      if: contains(github.ref, 'release')
       uses: docker/build-push-action@v3
       with:
           context: .
