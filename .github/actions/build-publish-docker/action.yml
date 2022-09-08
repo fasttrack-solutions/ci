@@ -78,6 +78,7 @@ runs:
         # Can be "open", "closed", or "all".  Defaults to "open".
         state: open         
     - name: Cache Docker layers
+      continue-on-error: true
       uses: actions/cache@v3
       with:
          path: /tmp/.buildx-cache
@@ -112,6 +113,7 @@ runs:
       # https://github.com/docker/build-push-action/issues/252
       # https://github.com/moby/buildkit/issues/1896
     - name: Move cache
+      continue-on-error: true
       shell: bash
       run: |
         rm -rf /tmp/.buildx-cache
