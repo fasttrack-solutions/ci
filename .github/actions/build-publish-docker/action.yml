@@ -42,12 +42,12 @@ runs:
   using: "composite"
   steps:
     - uses: actions/checkout@v3
-      if: inputs.git_fetch_submodules == "yes"
+      if: inputs.git_fetch_submodules == "true"
       with:
         submodules: recursive
         ssh-key: ${{ inputs.ssh_key }}    
     - uses: actions/checkout@v3
-      if: inputs.git_fetch_submodules != "yes"       
+      if: inputs.git_fetch_submodules != "true"       
     - name: Install SSH Key
       # You may pin to the exact commit or the version.
       # uses: shimataro/ssh-key-action@3c9b0fc6f2d223b8450b02a0445f526350fc73e0
