@@ -37,7 +37,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - name: Build & Publish
-      uses: fasttrack-solutions/ci/.github/actions/build-publish-docker@no-submodules
+      uses: fasttrack-solutions/ci/.github/actions/build-publish-docker@submodules
       with:
         image: ${{ inputs.image }}
         tag-prefix: ${{ inputs.tag-prefix }}
