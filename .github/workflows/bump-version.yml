@@ -70,7 +70,7 @@ jobs:
           github_token: ${{ secrets.token }}
           custom_tag: oneclickrelease-${{ env.BUILD_NUMBER }}
           tag_prefix: ""
-      - name: Create a GitHub release PR
+      - name: Create a GitHub release branch
         if: contains(github.ref, 'release')
         uses: actions/create-release@v1
         env:
