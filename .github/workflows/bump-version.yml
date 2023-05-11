@@ -6,10 +6,11 @@ on:
         required: false
         type: string
         default: "0"
-      is-library:
+      package-type:
+        type: string
+        default: "service"
+        description: "service" or "library"
         required: false
-        type: boolean
-        default: false
     secrets:
       token:
         required: true
@@ -33,7 +34,7 @@ jobs:
           # Can be "open", "closed", or "all".  Defaults to "open".
           state: open
       - name: Bump version and push tag (service)
-        if: ${{ inputs.is-library == 'false' && (github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main') }}
+        if: ${{ inputs.package-type == 'service' && (github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main') }}
         id: tag_version
         uses: mathieudutour/github-tag-action@v6.0
         with:
@@ -41,13 +42,13 @@ jobs:
           custom_tag: oneclick-${{ env.BUILD_NUMBER }}
           tag_prefix: ""
       - name: Bump version and push tag (library)
-        if: ${{ inputs.is-library == 'true' && (github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main') }}
+        if: ${{ inputs.package-type == 'library' && (github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main') }}
         id: tag_version_lib
         uses: mathieudutour/github-tag-action@v5.6
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
       - name: Create a GitHub release (service)
-        if: ${{ inputs.is-library == 'false' && (github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main') }}
+        if: ${{ inputs.package-type == 'service' && (github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main') }}
         uses: actions/create-release@v1
         env:
           GITHUB_TOKEN: ${{ secrets.token }}
@@ -56,7 +57,7 @@ jobs:
           release_name: Release ${{ steps.tag_version.outputs.new_tag }}
           body: ${{ steps.tag_version.outputs.changelog }}
       - name: Create a GitHub release (library)
-        if: ${{ inputs.is-library == 'true'  && (github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main') }}
+        if: ${{ inputs.package-type == 'library'  && (github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main') }}
         uses: actions/create-release@v1
         env:
           GITHUB_TOKEN: ${{ secrets.token }}
