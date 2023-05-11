@@ -33,7 +33,7 @@ jobs:
           # Can be "open", "closed", or "all".  Defaults to "open".
           state: open
       - name: Bump version and push tag (service)
-        if: !${{inputs.is-library}} && (github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main')
+        if: ${{!inputs.is-library}} && (github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main')
         id: tag_version
         uses: mathieudutour/github-tag-action@v6.0
         with:
