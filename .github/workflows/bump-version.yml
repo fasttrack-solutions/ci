@@ -7,12 +7,12 @@ on:
         type: string
         default: "0"
       package-type:
+        required: false
+        default: 'service'
         type: choice
         options:
           - service
           - library
-        default: 'service'
-        required: false
     secrets:
       token:
         required: true
