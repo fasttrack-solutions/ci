@@ -73,7 +73,7 @@ jobs:
           custom_tag: oneclickpr-${{ env.BUILD_NUMBER }}
           tag_prefix: ""
       - name: Bump version and push tag PR (library)
-        if: ${{ inputs.is-library == true && (github.ref != 'refs/heads/master' || github.ref != 'refs/heads/main') && steps.findPr.outputs.number > 0) }}
+        if: ${{ inputs.is-library == true && (github.ref != 'refs/heads/master' || github.ref != 'refs/heads/main') && steps.findPr.outputs.number > 0 }}
         id: tag_version_pr_lib
         uses: mathieudutour/github-tag-action@v6.0
         with:
