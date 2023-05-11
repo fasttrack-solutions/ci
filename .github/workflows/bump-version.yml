@@ -7,9 +7,11 @@ on:
         type: string
         default: "0"
       package-type:
-        type: string
-        default: "service"
-        description: "service" or "library"
+        type: choice
+        options:
+          - service
+          - library
+        default: 'service'
         required: false
     secrets:
       token:
