@@ -5,7 +5,11 @@ on:
       start-build-from:
         required: false
         type: string
-        default: "0"         
+        default: "0"
+      is-library:
+        required: false
+        type: boolean
+        default: false
     secrets:
       token:
         required: true
@@ -28,14 +32,20 @@ jobs:
         with:
           # Can be "open", "closed", or "all".  Defaults to "open".
           state: open
-      - name: Bump version and push tag
-        if: github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main'
+      - name: Bump version and push tag (service)
+        if: !${{inputs.is-library}} && (github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main')
         id: tag_version
         uses: mathieudutour/github-tag-action@v6.0
         with:
           github_token: ${{ secrets.token }}
           custom_tag: oneclick-${{ env.BUILD_NUMBER }}
           tag_prefix: ""
+      - name: Bump version and push tag (library)
+        if: ${{inputs.is-library}} && (github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main')
+        id: tag_version
+        uses: mathieudutour/github-tag-action@v5.6
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
       - name: Create a GitHub release
         if: github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main'
         uses: actions/create-release@v1
