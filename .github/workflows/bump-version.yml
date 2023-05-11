@@ -65,7 +65,7 @@ jobs:
           release_name: Release ${{ steps.tag_version_lib.outputs.new_tag }}
           body: ${{ steps.tag_version_lib.outputs.changelog }}
       - name: Bump version and push tag PR (service)
-        if: ${{ inputs.is-library == false && (github.ref != 'refs/heads/master' || github.ref != 'refs/heads/main') && steps.findPr.outputs.number > 0) }}
+        if: ${{ inputs.is-library == false && (github.ref != 'refs/heads/master' || github.ref != 'refs/heads/main') && steps.findPr.outputs.number > 0 }}
         id: tag_version_pr
         uses: mathieudutour/github-tag-action@v6.0
         with:
