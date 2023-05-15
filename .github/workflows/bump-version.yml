@@ -64,16 +64,22 @@ jobs:
           tag_name: ${{ steps.tag_version_lib.outputs.new_tag }}
           release_name: Release ${{ steps.tag_version_lib.outputs.new_tag }}
           body: ${{ steps.tag_version_lib.outputs.changelog }}
-      - name: Bump version and push tag PR
-        if: (github.ref != 'refs/heads/master' || github.ref != 'refs/heads/main') && steps.findPr.outputs.number > 0
+      - name: Bump version and push tag PR (service)
+        if: ${{ inputs.is-library == false && (github.ref != 'refs/heads/master' || github.ref != 'refs/heads/main') && steps.findPr.outputs.number > 0 }}
         id: tag_version_pr
         uses: mathieudutour/github-tag-action@v6.0
         with:
           github_token: ${{ secrets.token }}
           custom_tag: oneclickpr-${{ env.BUILD_NUMBER }}
           tag_prefix: ""
-      - name: Create a GitHub release PR
-        if: (github.ref != 'refs/heads/master' || github.ref != 'refs/heads/main') && steps.findPr.outputs.number > 0
+      - name: Bump version and push tag PR (library)
+        if: ${{ inputs.is-library == true && (github.ref != 'refs/heads/master' || github.ref != 'refs/heads/main') && steps.findPr.outputs.number > 0 }}
+        id: tag_version_pr_lib
+        uses: mathieudutour/github-tag-action@v6.0
+        with:
+          github_token: ${{ secrets.token }}
+      - name: Create a GitHub release PR (service)
+        if: ${{ inputs.is-library == false && (github.ref != 'refs/heads/master' || github.ref != 'refs/heads/main') && steps.findPr.outputs.number > 0 }}
         uses: actions/create-release@v1
         env:
           GITHUB_TOKEN: ${{ secrets.token }}
@@ -81,14 +87,27 @@ jobs:
           tag_name: ${{ steps.tag_version_pr.outputs.new_tag }}
           release_name: Release ${{ steps.tag_version_pr.outputs.new_tag }}
           body: ${{ steps.tag_version_pr.outputs.changelog }}
-      - name: Bump version and push tag Release Branch
-        if: contains(github.ref, 'release')
+      - name: Create a GitHub release PR (library)
+        if: ${{ inputs.is-library == true && (github.ref != 'refs/heads/master' || github.ref != 'refs/heads/main') && steps.findPr.outputs.number > 0 }}
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.token }}
+        with:
+          tag_name: ${{ steps.tag_version_pr_lib.outputs.new_tag }}
+      - name: Bump version and push tag Release Branch (service)
+        if: ${{ inputs.is-library == false && contains(github.ref, 'release') }}
         id: tag_version_release
         uses: mathieudutour/github-tag-action@v6.0
         with:
           github_token: ${{ secrets.token }}
           custom_tag: oneclickrelease-${{ env.BUILD_NUMBER }}
           tag_prefix: ""
+      - name: Bump version and push tag Release Branch (library)
+        if: ${{ inputs.is-library == true && contains(github.ref, 'release') }}
+        id: tag_version_release_lib
+        uses: mathieudutour/github-tag-action@v6.0
+        with:
+          github_token: ${{ secrets.token }}
       - name: Create a GitHub release branch
         if: contains(github.ref, 'release')
         uses: actions/create-release@v1
