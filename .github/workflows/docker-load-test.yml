@@ -1,0 +1,101 @@
+name: Docker Load Test
+on:
+  workflow_call:
+    inputs:
+      runner-group:
+        description: "the runner group to be used in the job"
+        required: false
+        type: string
+        default: "large-runners"
+      runner-labels:
+        description: "comma separated list of runner labels"
+        required: false
+        type: string
+        default: "linux"
+      docker-project-name:
+        description: "name assigned to docker project"
+        required: false
+        type: string
+        default: "load-test"
+      docker-compose-filepath:
+        description: "file path to docker compose file"
+        required: true
+        type: string
+        default: "./loadtest/docker-compose.yml"
+      docker-load-tester-service-name:
+        description: "docker service name of load tester"
+        required: false
+        type: string
+        default: "load-tester"
+      docker-service-name:
+        description: "docker service name of tested service"
+        required: true
+        type: string
+        default: "service"
+      docker-container-report-path:
+        description: "file path to report file inside docker container"
+        required: true
+        type: string
+        default: "/app/report.md"
+      exit-on-failure:
+        description: "flag to determine if workflow should exit on failure"
+        required: false
+        type: boolean
+        default: false
+    secrets:
+      FT_SSH_KEY:
+        required: true
+      FT_BITBUCKET_KNOWN_HOSTS:
+        required: true
+
+env:
+  docker-load-tester-container-name: ${{ inputs.docker-project-name }}-${{ inputs.docker-load-tester-service-name }}-1
+
+jobs:
+  load-test:
+    runs-on:
+      group: ${{ inputs.runner-group }}
+      labels: ${{ inputs.runner-labels }}
+    steps:
+      - name: Checkout current branch
+        uses: actions/checkout@v3
+
+      - name: Install SSH key
+        uses: shimataro/ssh-key-action@v2
+        with:
+          key: ${{ secrets.FT_SSH_KEY }}
+          name: id_rsa
+          known_hosts: ${{ secrets.FT_BITBUCKET_KNOWN_HOSTS }}
+
+      - name: Copy SSH Key
+        shell: bash
+        run: cp ~/.ssh/id_rsa .
+
+      - name: Run load test
+        run: docker compose -p ${{ inputs.docker-project-name }} -f ${{ inputs.docker-compose-filepath }} up --abort-on-container-exit
+
+      - name: Extract container exit code
+        id: container_exit_code
+        run: |
+          EXIT_RESULT=$(docker inspect ${{ env.docker-load-tester-container-name}} --format='{{.State.ExitCode}}' | grep -v -c 0 || true)
+          echo $EXIT_RESULT
+          echo "EXIT_RESULT=$EXIT_RESULT" >> $GITHUB_OUTPUT
+
+      - name: Exit on failure
+        if: ${{ inputs.exit-on-failure == true && steps.container_exit_code.outputs.EXIT_RESULT != '0' }}
+        run: exit 1
+
+      - name: Setup reports dir
+        run: mkdir reports
+
+      - name: Extract test results (${{ inputs.docker-service-name }})
+        run: docker cp ${{ env.docker-load-tester-container-name }}:${{ inputs.docker-container-report-path }} ./reports/report.md
+
+      - name: Comment benchmark result (${{ inputs.docker-service-name }})
+        continue-on-error: true
+        uses: marocchino/sticky-pull-request-comment@v2
+        with:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          header: ${{ inputs.docker-service-name }}
+          recreate: true
+          path: ./reports/report.md
