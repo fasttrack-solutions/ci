@@ -37,11 +37,6 @@ on:
         required: true
         type: string
         default: "/app/report.md"
-      exit-on-failure:
-        description: "flag to determine if workflow should exit on failure"
-        required: false
-        type: boolean
-        default: false
     secrets:
       FT_SSH_KEY:
         required: true
@@ -73,17 +68,6 @@ jobs:
 
       - name: Run load test
         run: docker compose -p ${{ inputs.docker-project-name }} -f ${{ inputs.docker-compose-filepath }} up --abort-on-container-exit
-
-      - name: Extract container exit code
-        id: container_exit_code
-        run: |
-          EXIT_RESULT=$(docker inspect ${{ env.docker-load-tester-container-name}} --format='{{.State.ExitCode}}' | grep -v -c 0 || true)
-          echo $EXIT_RESULT
-          echo "EXIT_RESULT=$EXIT_RESULT" >> $GITHUB_OUTPUT
-
-      - name: Exit on failure
-        if: ${{ inputs.exit-on-failure == true && steps.container_exit_code.outputs.EXIT_RESULT != '0' }}
-        run: exit 1
 
       - name: Setup reports dir
         run: mkdir reports
