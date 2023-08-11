@@ -72,6 +72,7 @@ jobs:
           github_token: ${{ secrets.token }}
           custom_tag: oneclickpr-${{ env.BUILD_NUMBER }}
           tag_prefix: ""
+          fetch_all_tags: true
       - name: Bump version and push tag PR (library)
         if: ${{ inputs.is-library == true && (github.ref != 'refs/heads/master' || github.ref != 'refs/heads/main') && steps.findPr.outputs.number > 0 }}
         id: tag_version_pr_lib
