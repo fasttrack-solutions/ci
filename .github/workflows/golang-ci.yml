@@ -23,7 +23,9 @@ on:
       FT_SSH_KEY:
         required: true
       FT_BITBUCKET_KNOWN_HOSTS:
-        required: true        
+        required: true
+      CODECOV_TOKEN:
+        required: false
 
 jobs:
 
