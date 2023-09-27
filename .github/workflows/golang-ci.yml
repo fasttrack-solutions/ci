@@ -70,4 +70,9 @@ jobs:
       with:
         name: Unit tests            # Name of the check run which will be created
         path: test-reports/*.xml   # Path to test results
-        reporter: java-junit 
+        reporter: java-junit
+    - name: Upload coverage reports to Codecov
+      continue-on-error: true
+      uses: codecov/codecov-action@v3
+      env:
+        CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
