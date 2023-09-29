@@ -64,7 +64,7 @@ jobs:
       run: go install gotest.tools/gotestsum@latest
 
     - name: Run Test
-      run:  MYSQL_VERSION=${{ inputs.go-test-mysql-version }} gotestsum --junitfile test-reports/report.xml -- -timeout ${{ inputs.go-test-timeout }} ./...
+      run:  MYSQL_VERSION=${{ inputs.go-test-mysql-version }} gotestsum --junitfile test-reports/report.xml -- -timeout ${{ inputs.go-test-timeout }} -covermode=atomic -coverprofile=cover.out ./...
 
     - name: Test Report
       uses: dorny/test-reporter@v1
