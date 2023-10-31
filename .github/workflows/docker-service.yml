@@ -12,8 +12,12 @@ on:
         default: ""        
       dockerfile:
         required: false
-        type: string  
+        type: string
         default: "./deployments/docker/Dockerfile"
+      build-args:
+        required: false
+        type: string
+        default: ""
       start-build-from:
         required: false
         type: string  
@@ -42,6 +46,7 @@ jobs:
         image: ${{ inputs.image }}
         tag-prefix: ${{ inputs.tag-prefix }}
         dockerfile: ${{ inputs.dockerfile }}
+        build-args: ${{ inputs.build-args }}
         ssh_key: ${{ secrets.FT_SSH_KEY }}
         ssh_known_hosts: ${{ secrets.FT_BITBUCKET_KNOWN_HOSTS }}    
         ecr_aws_access_key_id: ${{ secrets.FT_ECR_AWS_ACCESS_KEY_ID }}
