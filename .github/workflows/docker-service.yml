@@ -12,8 +12,12 @@ on:
         default: ""        
       dockerfile:
         required: false
-        type: string  
+        type: string
         default: "./deployments/docker/Dockerfile"
+      build-args:
+        required: false
+        type: string
+        default: ""
       start-build-from:
         required: false
         type: string  

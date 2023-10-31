@@ -105,8 +105,7 @@ runs:
           file: ${{inputs.dockerfile}}
           cache-from: type=local,src=/tmp/.buildx-cache
           cache-to: type=local,dest=/tmp/.buildx-cache-new
-          build-args: |
-            ${{ inputs.build-args || '' }}
+          build-args: ${{ inputs.build-args }}
     - name: Build and push PR
       if: (github.ref != 'refs/heads/master' || github.ref != 'refs/heads/main') && steps.findPr.outputs.number > 0
       uses: docker/build-push-action@v3
@@ -118,8 +117,7 @@ runs:
           file: ${{inputs.dockerfile}}
           cache-from: type=local,src=/tmp/.buildx-cache
           cache-to: type=local,dest=/tmp/.buildx-cache-new
-          build-args: |
-            ${{ inputs.build-args || '' }}
+          build-args: ${{ inputs.build-args }}
     - name: Build and push Release
       if: contains(github.ref, 'release')
       uses: docker/build-push-action@v3
@@ -131,8 +129,7 @@ runs:
           file: ${{inputs.dockerfile}}
           cache-from: type=local,src=/tmp/.buildx-cache
           cache-to: type=local,dest=/tmp/.buildx-cache-new
-          build-args: |
-            ${{ inputs.build-args || '' }}
+          build-args: ${{ inputs.build-args }}
       # This ugly bit is necessary if you don't want your cache to grow forever
       # until it hits GitHub's limit of 5GB.
       # Temp fix
