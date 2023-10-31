@@ -18,7 +18,7 @@ inputs:
     required: true
     default: ""
   build-args:
-    description: "docker file build args"
+    description: "set build-time variables"
     required: false
     default: ""
   ssh_key:    
