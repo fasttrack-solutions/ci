@@ -36,7 +36,7 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
 
     - name: Git config setup for bitbucket
       run: git config --global url."git@bitbucket.org:fasttrackdevteam".insteadOf "https://bitbucket.org/fasttrackdevteam"
