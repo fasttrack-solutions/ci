@@ -88,7 +88,7 @@ runs:
         state: open         
     - name: Cache Docker layers
       continue-on-error: true
-      uses: actions/cache@v3
+      uses: actions/cache@v4
       with:
          path: /tmp/.buildx-cache
          key: ${{ runner.os }}-buildx-${{ github.sha }}
