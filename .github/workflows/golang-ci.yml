@@ -47,6 +47,22 @@ jobs:
     - name: Setting private repos for golang
       run: export GOPRIVATE=bitbucket.org/fasttrackdevteam,github.com/fasttrack-solutions
 
+    - name: Update apt
+      if: ${{ inputs.enable-vips }}
+      env:
+        DEBIAN_FRONTEND: noninteractive
+      run: 
+        sudo apt-get update -qq -o Acquire::Retries=3
+
+    - name: Install libvips
+      if: ${{ inputs.enable-vips }}
+      env:
+        DEBIAN_FRONTEND: noninteractive
+      run:
+        # we only need the library
+        sudo apt-get install --fix-missing -qq -o Acquire::Retries=3
+          libvips libvips-dev       
+
     - name: Install SSH Key
       uses: shimataro/ssh-key-action@v2.3.1
       with:

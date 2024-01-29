@@ -44,7 +44,7 @@ jobs:
         run:
           # we only need the library
           sudo apt-get install --fix-missing -qq -o Acquire::Retries=3
-            libvips 
+            libvips libvips-dev
       - name: Setting private repos for golang
         run: export GOPRIVATE=bitbucket.org/fasttrackdevteam,github.com/fasttrack-solutions
     
