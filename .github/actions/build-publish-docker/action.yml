@@ -40,6 +40,10 @@ inputs:
   git_fetch_submodules:
     description: "checkout and fetch submodules"
     default: "true"
+  enable-vips:
+    required: false
+    type: boolean
+    default: false
   
 runs:
   using: "composite"
@@ -50,7 +54,23 @@ runs:
         submodules: recursive
         ssh-key: ${{ inputs.ssh_key }}    
     - uses: actions/checkout@v3
-      if: inputs.git_fetch_submodules != 'true'       
+      if: inputs.git_fetch_submodules != 'true'      
+
+    - name: Update apt
+      if: ${{ inputs.enable-vips }}
+      env:
+        DEBIAN_FRONTEND: noninteractive
+      run: 
+        sudo apt-get update -qq -o Acquire::Retries=3
+
+    - name: Install libvips
+      if: ${{ inputs.enable-vips }}
+      env:
+        DEBIAN_FRONTEND: noninteractive
+      run:
+        # we only need the library
+        sudo apt-get install --fix-missing -qq -o Acquire::Retries=3
+          libvips 
     - name: Install SSH Key
       # You may pin to the exact commit or the version.
       # uses: shimataro/ssh-key-action@3c9b0fc6f2d223b8450b02a0445f526350fc73e0
