@@ -45,7 +45,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:     
     - name: Build & Publish
-      uses: fasttrack-solutions/ci/.github/actions/build-publish-docker@main
+      uses: fasttrack-solutions/ci/.github/actions/build-publish-docker@feat/vips #TODO: need to revert to main before merge
       with:
         image: ${{ inputs.image }}
         tag-prefix: ${{ inputs.tag-prefix-service }}
@@ -60,7 +60,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:    
     - name: Build & Publish
-      uses: fasttrack-solutions/ci/.github/actions/build-publish-docker@main
+      uses: fasttrack-solutions/ci/.github/actions/build-publish-docker@feat/vips #TODO: need to revert to main before merge
       with:
         image: ${{ inputs.image }}
         tag-prefix: ${{ inputs.tag-prefix-api }}
