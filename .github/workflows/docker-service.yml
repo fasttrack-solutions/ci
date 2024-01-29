@@ -26,10 +26,6 @@ on:
         required: false                            
         type: string
         default: "true"
-      enable-vips:
-        required: false
-        type: boolean
-        default: false
     secrets:
       FT_SSH_KEY:
         required: true
@@ -57,4 +53,3 @@ jobs:
         ecr_aws_secret_key: ${{ secrets.FT_ECR_AWS_SECRET_ACCESS_KEY }}
         start-build-from: ${{ inputs.start-build-from }}
         git_fetch_submodules: ${{ inputs.git_fetch_submodules }}
-        enable-vips: ${{ inputs.enable-vips }}

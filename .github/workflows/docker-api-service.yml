@@ -25,11 +25,7 @@ on:
       start-build-from:
         required: false
         type: string  
-        default: "0"     
-      enable-vips:
-        required: false
-        type: boolean
-        default: false                            
+        default: "0"                            
     secrets:
       FT_SSH_KEY:
         required: true
@@ -55,7 +51,6 @@ jobs:
         ecr_aws_access_key_id: ${{ secrets.FT_ECR_AWS_ACCESS_KEY_ID }}
         ecr_aws_secret_key: ${{ secrets.FT_ECR_AWS_SECRET_ACCESS_KEY }}
         start-build-from: ${{ inputs.start-build-from }}
-        enable-vips: ${{ inputs.enable-vips }}
   build-api:
     runs-on: ubuntu-latest
     steps:    
@@ -70,4 +65,3 @@ jobs:
         ecr_aws_access_key_id: ${{ secrets.FT_ECR_AWS_ACCESS_KEY_ID }}
         ecr_aws_secret_key: ${{ secrets.FT_ECR_AWS_SECRET_ACCESS_KEY }}   
         start-build-from: ${{ inputs.start-build-from }}
-        enable-vips: ${{ inputs.enable-vips }}  
