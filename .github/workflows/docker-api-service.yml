@@ -25,7 +25,7 @@ on:
       start-build-from:
         required: false
         type: string  
-        default: "0"                                 
+        default: "0"                            
     secrets:
       FT_SSH_KEY:
         required: true
@@ -64,4 +64,4 @@ jobs:
         ssh_known_hosts: ${{ secrets.FT_BITBUCKET_KNOWN_HOSTS }}    
         ecr_aws_access_key_id: ${{ secrets.FT_ECR_AWS_ACCESS_KEY_ID }}
         ecr_aws_secret_key: ${{ secrets.FT_ECR_AWS_SECRET_ACCESS_KEY }}   
-        start-build-from: ${{ inputs.start-build-from }}     
+        start-build-from: ${{ inputs.start-build-from }}
