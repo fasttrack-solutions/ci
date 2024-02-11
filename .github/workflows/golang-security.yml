@@ -51,7 +51,7 @@ jobs:
       - name: Install SSH Key
         # You may pin to the exact commit or the version.
         # uses: shimataro/ssh-key-action@3c9b0fc6f2d223b8450b02a0445f526350fc73e0
-        uses: shimataro/ssh-key-action@v2.3.1
+        uses: shimataro/ssh-key-action@v2.7.0
         with:
           key: ${{ secrets.FT_SSH_KEY }}
           known_hosts: ${{ secrets.FT_BITBUCKET_KNOWN_HOSTS }}    
@@ -81,7 +81,7 @@ jobs:
        - name: Install SSH Key
          # You may pin to the exact commit or the version.
          # uses: shimataro/ssh-key-action@3c9b0fc6f2d223b8450b02a0445f526350fc73e0
-         uses: shimataro/ssh-key-action@v2.3.1
+         uses: shimataro/ssh-key-action@v2.7.0
          with:
            key: ${{ secrets.FT_SSH_KEY }}
            known_hosts: ${{ secrets.FT_BITBUCKET_KNOWN_HOSTS }}    
