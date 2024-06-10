@@ -40,7 +40,6 @@ inputs:
   git_fetch_submodules:
     description: "checkout and fetch submodules"
     default: "true"
-  
 runs:
   using: "composite"
   steps:
