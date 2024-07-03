@@ -30,7 +30,6 @@ on:
       runner-labels:
         description: "comma separated list of runner labels"
         required: false
-        type: string
         default: "ubuntu-latest"
     secrets:
       FT_SSH_KEY:
@@ -43,10 +42,7 @@ on:
 jobs:
 
   build:
-    runs-on: ${{ matrix.runner }}
-    strategy:
-      matrix:
-        runner: ${{ fromJson(inputs.runner-labels) }}
+    runs-on: ${{ inputs.runner-labels }}
     steps:
     - uses: actions/checkout@v3
 
