@@ -42,7 +42,7 @@ jobs:
           DEBIAN_FRONTEND: noninteractive
         run: |
           sudo apt-get install --fix-missing -qq -o Acquire::Retries=3 libvips libvips-dev
-          export PKG_CONFIG_PATH=/usr/local/lib/pkgconfig:$PKG_CONFIG_PATH
+          export PKG_CONFIG_PATH=$(pkg-config --variable pc_path pkg-config | tr ':' '\n' | grep -m 1 vips.pc | xargs dirname):$PKG_CONFIG_PATH
 
       - name: Setting private repos for golang
         run: export GOPRIVATE=bitbucket.org/fasttrackdevteam,github.com/fasttrack-solutions
@@ -103,7 +103,7 @@ jobs:
           DEBIAN_FRONTEND: noninteractive
         run: |
           sudo apt-get install --fix-missing -qq -o Acquire::Retries=3 libvips libvips-dev
-          export PKG_CONFIG_PATH=/usr/local/lib/pkgconfig:$PKG_CONFIG_PATH
+          export PKG_CONFIG_PATH=$(pkg-config --variable pc_path pkg-config | tr ':' '\n' | grep -m 1 vips.pc | xargs dirname):$PKG_CONFIG_PATH
 
       - name: golangci-lint
         uses: golangci/golangci-lint-action@v3
