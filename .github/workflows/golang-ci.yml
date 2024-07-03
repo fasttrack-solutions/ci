@@ -27,8 +27,8 @@ on:
         description: "install python packages"
         type: boolean
         default: false
-      runner-labels:
-        description: "comma separated list of runner labels"
+      runner:
+        description: "runner to be used by the workflow"
         required: false
         type: string
         default: "ubuntu-latest"
@@ -43,7 +43,7 @@ on:
 jobs:
 
   build:
-    runs-on: ${{ inputs.runner-labels }}
+    runs-on: ${{ inputs.runner }}
     steps:
     - uses: actions/checkout@v3
 
