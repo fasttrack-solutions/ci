@@ -30,6 +30,7 @@ on:
       runner-labels:
         description: "comma separated list of runner labels"
         required: false
+        type: string
         default: "ubuntu-latest"
     secrets:
       FT_SSH_KEY:
