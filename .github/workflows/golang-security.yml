@@ -14,7 +14,7 @@ on:
       FT_SSH_KEY:
         required: true
       FT_BITBUCKET_KNOWN_HOSTS:
-        required: true   
+        required: true
 jobs:
   security:
     runs-on: ubuntu-latest
@@ -23,78 +23,90 @@ jobs:
     steps:
       - name: Checkout Source
         uses: actions/checkout@v3
-        
+
       - name: Git config setup for bitbucket
         run: git config --global url."git@bitbucket.org:fasttrackdevteam".insteadOf "https://bitbucket.org/fasttrackdevteam"
-        
+
       - name: Git config setup for github
-        run: git config --global url."git@github.com:".insteadOf https://github.com/
+        run: git config --global url."git@github.com:".insteadOf "https://github.com/"
 
       - name: Update apt
         if: ${{ inputs.enable-vips }}
         env:
           DEBIAN_FRONTEND: noninteractive
-        run: 
-          sudo apt-get update -qq -o Acquire::Retries=3
+        run: sudo apt-get update -qq -o Acquire::Retries=3
 
       - name: Install libvips
         if: ${{ inputs.enable-vips }}
         env:
           DEBIAN_FRONTEND: noninteractive
-        run:
-          # we only need the library
-          sudo apt-get install --fix-missing -qq -o Acquire::Retries=3
-            libvips libvips-dev
+        run: |
+          sudo apt-get install --fix-missing -qq -o Acquire::Retries=3 libvips libvips-dev
+          export PKG_CONFIG_PATH=/usr/local/lib/pkgconfig:$PKG_CONFIG_PATH
+
       - name: Setting private repos for golang
         run: export GOPRIVATE=bitbucket.org/fasttrackdevteam,github.com/fasttrack-solutions
-    
+
       - name: Install SSH Key
-        # You may pin to the exact commit or the version.
-        # uses: shimataro/ssh-key-action@3c9b0fc6f2d223b8450b02a0445f526350fc73e0
         uses: shimataro/ssh-key-action@v2.3.1
         with:
           key: ${{ secrets.FT_SSH_KEY }}
-          known_hosts: ${{ secrets.FT_BITBUCKET_KNOWN_HOSTS }}    
+          known_hosts: ${{ secrets.FT_BITBUCKET_KNOWN_HOSTS }}
       - name: Setup Golang with cache
         uses: magnetikonline/action-golang-cache@v2
         with:
-         go-version: ${{ inputs.go-version }}            
+          go-version: ${{ inputs.go-version }}
       - name: Install govulncheck
         run: go install golang.org/x/vuln/cmd/govulncheck@latest
       - name: Run govulncheck
-        run: GO111MODULE=on govulncheck ./...         
+        run: GO111MODULE=on govulncheck ./...
       - name: Install go sec
-        run: go install github.com/securego/gosec/v2/cmd/gosec@master
+        run: go install github.com/securego/gosec/v2/cmd/gosec@latest
       - name: Run gosec
         run: GO111MODULE=on gosec ./...
+
   golangci:
-     name: lint
-     runs-on: ubuntu-latest
-     steps:
-       - uses: actions/checkout@v3
-       - name: Git config setup for github
-         run: git config --global url."git@github.com:".insteadOf https://github.com/
-    
-       - name: Setting private repos for golang
-         run: export GOPRIVATE=bitbucket.org/fasttrackdevteam,github.com/fasttrack-solutions
-    
-       - name: Install SSH Key
-         # You may pin to the exact commit or the version.
-         # uses: shimataro/ssh-key-action@3c9b0fc6f2d223b8450b02a0445f526350fc73e0
-         uses: shimataro/ssh-key-action@v2.3.1
-         with:
-           key: ${{ secrets.FT_SSH_KEY }}
-           known_hosts: ${{ secrets.FT_BITBUCKET_KNOWN_HOSTS }}    
-       - name: Setup Golang with cache
-         uses: magnetikonline/action-golang-cache@v2
-         with:
-          go-version: ${{ inputs.go-version }}         
-       - uses: actions/setup-go@v4
-         with:
-           go-version: ${{ inputs.go-version }}            
-           cache: false
-       - name: golangci-lint
-         uses: golangci/golangci-lint-action@v3
-         with:
-           version: latest
-           args: --timeout=10m
+    name: lint
+    runs-on: ubuntu-latest
+    env:
+      GO111MODULE: on
+    steps:
+      - uses: actions/checkout@v3
+      - name: Git config setup for github
+        run: git config --global url."git@github.com:".insteadOf "https://github.com/"
+
+      - name: Setting private repos for golang
+        run: export GOPRIVATE=bitbucket.org/fasttrackdevteam,github.com/fasttrack-solutions
+
+      - name: Install SSH Key
+        uses: shimataro/ssh-key-action@v2.3.1
+        with:
+          key: ${{ secrets.FT_SSH_KEY }}
+          known_hosts: ${{ secrets.FT_BITBUCKET_KNOWN_HOSTS }}
+      - name: Setup Golang with cache
+        uses: magnetikonline/action-golang-cache@v2
+        with:
+          go-version: ${{ inputs.go-version }}
+      - uses: actions/setup-go@v4
+        with:
+          go-version: ${{ inputs.go-version }}
+          cache: false
+      - name: Update apt
+        if: ${{ inputs.enable-vips }}
+        env:
+          DEBIAN_FRONTEND: noninteractive
+        run: sudo apt-get update -qq -o Acquire::Retries=3
+
+      - name: Install libvips
+        if: ${{ inputs.enable-vips }}
+        env:
+          DEBIAN_FRONTEND: noninteractive
+        run: |
+          sudo apt-get install --fix-missing -qq -o Acquire::Retries=3 libvips libvips-dev
+          export PKG_CONFIG_PATH=/usr/local/lib/pkgconfig:$PKG_CONFIG_PATH
+
+      - name: golangci-lint
+        uses: golangci/golangci-lint-action@v3
+        with:
+          version: latest
+          args: --timeout=10m --out-format=colored-line-number
