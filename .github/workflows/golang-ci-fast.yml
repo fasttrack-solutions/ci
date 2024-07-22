@@ -1,0 +1,120 @@
+name: Golang-CI
+
+on:
+  workflow_call:
+    inputs:
+      runner-group:
+        description: "the runner group to be used in the job"
+        required: false
+        type: string
+        default: "large-runners"
+      runner-labels:
+        description: "comma separated list of runner labels"
+        required: false
+        type: string
+        default: "linux"
+      go-version:
+        required: true
+        type: string
+        default: "~1.18"
+      go-skip-build:
+        required: false
+        type: boolean
+        default: false
+      go-test-timeout:
+        required: false
+        type: string
+        default: "10m"
+      go-test-mysql-version:
+        required: false
+        type: string
+        default: "5.6"
+      enable-vips:
+        required: false
+        type: boolean
+        default: false
+      python_pip_install:
+        description: "install python packages"
+        type: boolean
+        default: false
+    secrets:
+      FT_SSH_KEY:
+        required: true
+      FT_BITBUCKET_KNOWN_HOSTS:
+        required: true
+      CODECOV_TOKEN:
+        required: false
+
+jobs:
+  build:
+    runs-on:
+      group: ${{ inputs.runner-group }}
+      labels: ${{ inputs.runner-labels }}
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Git config setup for bitbucket
+        run: git config --global url."git@bitbucket.org:fasttrackdevteam".insteadOf "https://bitbucket.org/fasttrackdevteam"
+
+      - name: Git config setup for github
+        run: git config --global url."git@github.com:".insteadOf https://github.com/
+
+      - name: Setting private repos for golang
+        run: export GOPRIVATE=bitbucket.org/fasttrackdevteam,github.com/fasttrack-solutions
+
+      - name: Update apt
+        if: ${{ inputs.enable-vips }}
+        env:
+          DEBIAN_FRONTEND: noninteractive
+        run: sudo apt-get update -qq -o Acquire::Retries=3
+
+      - name: Install libvips
+        if: ${{ inputs.enable-vips }}
+        env:
+          DEBIAN_FRONTEND: noninteractive
+        run:
+          # we only need the library
+          sudo apt-get install --fix-missing -qq -o Acquire::Retries=3
+          libvips libvips-dev
+
+      - name: Install SSH Key
+        uses: shimataro/ssh-key-action@v2.3.1
+        with:
+          key: ${{ secrets.FT_SSH_KEY }}
+          known_hosts: ${{ secrets.FT_BITBUCKET_KNOWN_HOSTS }}
+      - name: Setup Golang with cache
+        uses: magnetikonline/action-golang-cache@v2
+        with:
+          go-version: ${{ inputs.go-version }}
+
+      - name: pip install
+        if: inputs.python_pip_install == true
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Build
+        if: inputs.go-skip-build == false
+        run: go build -v ./...
+
+      - name: Test Dir
+        run: mkdir test-reports
+
+      - name: Get gotestsum
+        run: go install gotest.tools/gotestsum@latest
+
+      - name: Run Test
+        run: MYSQL_VERSION=${{ inputs.go-test-mysql-version }} gotestsum --junitfile test-reports/report.xml -- -timeout ${{ inputs.go-test-timeout }} -covermode=atomic -coverprofile=cover.out ./...
+
+      - name: Test Report
+        uses: dorny/test-reporter@v1
+        if: success() || failure() # run this step even if previous step failed
+        with:
+          name: Unit tests # Name of the check run which will be created
+          path: test-reports/*.xml # Path to test results
+          reporter: java-junit
+      - name: Upload coverage reports to Codecov
+        continue-on-error: true
+        uses: codecov/codecov-action@v3
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
