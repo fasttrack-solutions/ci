@@ -27,6 +27,11 @@ on:
         description: "install python packages"
         type: boolean
         default: false
+      runner:
+        description: "runner to be used by the workflow"
+        required: false
+        type: string
+        default: "ubuntu-latest"
     secrets:
       FT_SSH_KEY:
         required: true
@@ -38,7 +43,7 @@ on:
 jobs:
 
   build:
-    runs-on: ubuntu-latest
+    runs-on: ${{ inputs.runner }}
     steps:
     - uses: actions/checkout@v3
 
