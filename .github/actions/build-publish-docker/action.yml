@@ -117,6 +117,11 @@ runs:
           build-args: ${{ inputs.build-args }}
           cache-from: type=local,src=/tmp/.buildx-cache
           cache-to: type=local,dest=/tmp/.buildx-cache-new
+    - name: Post image name to PR comments
+      uses: thollander/actions-comment-pull-request@v2
+      with:
+        message: |
+          📀 PR image is ready: oneclickpr-${{ steps.findPr.outputs.pr }}-${{ env.BUILD_NUMBER }}
     - name: Build and push Release
       if: contains(github.ref, 'release')
       uses: docker/build-push-action@v3
