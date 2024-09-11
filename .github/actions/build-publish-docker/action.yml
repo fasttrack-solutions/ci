@@ -118,6 +118,7 @@ runs:
           cache-from: type=local,src=/tmp/.buildx-cache
           cache-to: type=local,dest=/tmp/.buildx-cache-new
     - name: Post image name to PR comments
+      if: steps.build-and-push-pr.outcome == 'success'
       uses: thollander/actions-comment-pull-request@v2
       with:
         message: |
