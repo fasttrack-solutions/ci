@@ -106,17 +106,26 @@ runs:
           cache-from: type=local,src=/tmp/.buildx-cache
           cache-to: type=local,dest=/tmp/.buildx-cache-new
     - name: Build and push PR
-      if: (github.ref != 'refs/heads/master' || github.ref != 'refs/heads/main') && steps.findPr.outputs.number > 0
-      uses: docker/build-push-action@v3
+    if: (github.ref != 'refs/heads/master' || github.ref != 'refs/heads/main') && steps.findPr.outputs.number > 0
+    uses: docker/build-push-action@v3
+    with:
+      context: .
+      platforms: linux/amd64
+      push: true
+      tags: ${{ steps.login-ecr.outputs.registry }}/${{inputs.image}}:${{inputs.tag-prefix}}oneclickpr-${{ steps.findPr.outputs.pr }}-${{ env.BUILD_NUMBER }}
+      file: ${{inputs.dockerfile}}
+      build-args: ${{ inputs.build-args }}
+      cache-from: type=local,src=/tmp/.buildx-cache
+      cache-to: type=local,dest=/tmp/.buildx-cache-new
+    - run: |
+        echo '📀 PR image is ready: oneclickpr-${{ steps.findPr.outputs.pr }}-${{ env.BUILD_NUMBER }}' >> $GITHUB_STEP_SUMMARY
+      if: success()
+    - name: Post image name to PR comments
+      if: steps.build-and-push-pr.outcome == 'success'
+      uses: thollander/actions-comment-pull-request@v2
       with:
-          context: .
-          platforms: linux/amd64
-          push: true
-          tags: ${{ steps.login-ecr.outputs.registry }}/${{inputs.image}}:${{inputs.tag-prefix}}oneclickpr-${{ steps.findPr.outputs.pr }}-${{ env.BUILD_NUMBER }}
-          file: ${{inputs.dockerfile}}
-          build-args: ${{ inputs.build-args }}
-          cache-from: type=local,src=/tmp/.buildx-cache
-          cache-to: type=local,dest=/tmp/.buildx-cache-new
+        message: |
+          📀 PR image is ready: oneclickpr-${{ steps.findPr.outputs.pr }}-${{ env.BUILD_NUMBER }}
     - name: Build and push Release
       if: contains(github.ref, 'release')
       uses: docker/build-push-action@v3
