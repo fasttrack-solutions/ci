@@ -78,6 +78,8 @@ jobs:
         uses: mathieudutour/github-tag-action@v6.0
         with:
           github_token: ${{ secrets.token }}
+          custom_tag: pr-${{ env.BUILD_NUMBER }}
+          tag_prefix: ""
       - name: Create a GitHub release PR (service)
         if: ${{ inputs.is-library == false && (github.ref != 'refs/heads/master' || github.ref != 'refs/heads/main') && steps.findPr.outputs.number > 0 }}
         uses: actions/create-release@v1
