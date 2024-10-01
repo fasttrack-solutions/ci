@@ -35,7 +35,7 @@ jobs:
       - if: ${{ inputs.is-library == false && (github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main') }}
         name: Bump version and push tag (service)
         id: tag_version
-        uses: mathieudutour/github-tag-action@v6.0
+        uses: mathieudutour/github-tag-action@v6.2
         with:
           github_token: ${{ secrets.token }}
           custom_tag: oneclick-${{ env.BUILD_NUMBER }}
@@ -43,7 +43,7 @@ jobs:
       - if: ${{ inputs.is-library == true && (github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main') }}
         name: Bump version and push tag (library)
         id: tag_version_lib
-        uses: mathieudutour/github-tag-action@v5.6
+        uses: mathieudutour/github-tag-action@v6.2
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
       - if: ${{ inputs.is-library == false && (github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main') }}
@@ -67,7 +67,7 @@ jobs:
       - name: Bump version and push tag PR (service)
         if: ${{ inputs.is-library == false && (github.ref != 'refs/heads/master' || github.ref != 'refs/heads/main') && steps.findPr.outputs.number > 0 }}
         id: tag_version_pr
-        uses: mathieudutour/github-tag-action@v6.0
+        uses: mathieudutour/github-tag-action@v6.2
         with:
           github_token: ${{ secrets.token }}
           custom_tag: oneclickpr-${{ env.BUILD_NUMBER }}
@@ -75,7 +75,7 @@ jobs:
       - name: Bump version and push tag PR (library)
         if: ${{ inputs.is-library == true && (github.ref != 'refs/heads/master' || github.ref != 'refs/heads/main') && steps.findPr.outputs.number > 0 }}
         id: tag_version_pr_lib
-        uses: mathieudutour/github-tag-action@v6.0
+        uses: mathieudutour/github-tag-action@v6.2
         with:
           github_token: ${{ secrets.token }}
           custom_tag: pr-${{ env.BUILD_NUMBER }}
@@ -99,7 +99,7 @@ jobs:
       - name: Bump version and push tag Release Branch (service)
         if: ${{ inputs.is-library == false && contains(github.ref, 'release') }}
         id: tag_version_release
-        uses: mathieudutour/github-tag-action@v6.0
+        uses: mathieudutour/github-tag-action@v6.2
         with:
           github_token: ${{ secrets.token }}
           custom_tag: oneclickrelease-${{ env.BUILD_NUMBER }}
@@ -107,7 +107,7 @@ jobs:
       - name: Bump version and push tag Release Branch (library)
         if: ${{ inputs.is-library == true && contains(github.ref, 'release') }}
         id: tag_version_release_lib
-        uses: mathieudutour/github-tag-action@v6.0
+        uses: mathieudutour/github-tag-action@v6.2
         with:
           github_token: ${{ secrets.token }}
       - name: Create a GitHub release branch
