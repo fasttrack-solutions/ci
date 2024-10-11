@@ -10,6 +10,10 @@ on:
         required: false
         type: boolean
         default: false
+      go-sec-ignore-folders:
+        required: false
+        type: string
+        default: ""
     secrets:
       FT_SSH_KEY:
         required: true
@@ -63,7 +67,12 @@ jobs:
       - name: Install go sec
         run: go install github.com/securego/gosec/v2/cmd/gosec@latest
       - name: Run gosec
-        run: GO111MODULE=on gosec ./...
+        run: |
+          if [ -n "${{ inputs.go-sec-ignore-folders }}" ]; then
+            GO111MODULE=on gosec -exclude-dir=${{ inputs.go-sec-ignore-folders }} ./...
+          else
+            GO111MODULE=on gosec ./...
+          fi
 
   golangci:
     name: lint
