@@ -97,6 +97,9 @@ jobs:
       run: |
         go get github.com/apple/pkl-go
         go install github.com/apple/pkl-go/cmd/pkl-gen-go@v0.8.0
+        curl -L -o pkl 'https://github.com/apple/pkl/releases/download/0.26.3/pkl-macos-aarch64'
+        chmod +x pkl
+        ./pkl --version
       env:
         GOBIN: ${{ runner.temp }}/go/bin
 
