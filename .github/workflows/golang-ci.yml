@@ -27,6 +27,10 @@ on:
         description: "install python packages"
         type: boolean
         default: false
+      pkl_install:
+        description: "install pkl"
+        type: boolean
+        default: false
       runner:
         description: "runner to be used by the workflow"
         required: false
@@ -87,6 +91,12 @@ jobs:
       run: |
         python -m pip install --upgrade pip
         pip install -r requirements.txt       
+
+    - name: Install pkl
+      if: inputs.pkl_install == true
+      uses: pkl-community/setup-pkl@v0
+      with:
+        pkl-version: 0.25.2
 
     - name: Build
       if: inputs.go-skip-build == false
