@@ -92,14 +92,22 @@ jobs:
         python -m pip install --upgrade pip
         pip install -r requirements.txt       
 
-    - name: Install pkl and Add GOBIN to PATH
+    - name: Install pkl
       if: inputs.pkl_install == true
       run: |
         go get github.com/apple/pkl-go
         go install github.com/apple/pkl-go/cmd/pkl-gen-go@v0.6.0
         go install github.com/apple/pkl-go/cmd/pkl-gen-go@latest
-        echo "${{ runner.temp }}/go/bin" >> $GITHUB_PATH
-        pkl --version
+      env:
+        GOBIN: ${{ runner.temp }}/go/bin
+
+    - name: Add GOBIN to PATH
+      if: inputs.pkl_install == true
+      run: echo "${{ runner.temp }}/go/bin" >> $GITHUB_PATH
+
+    - name: Verify pkl installation
+      if: inputs.pkl_install == true
+      run: pkl --version
       env:
         GOBIN: ${{ runner.temp }}/go/bin
 
