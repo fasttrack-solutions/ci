@@ -95,8 +95,9 @@ jobs:
     - name: Install pkl
       if: inputs.pkl_install == true
       run: |
-        wget https://example.com/path/to/pkl -O /usr/local/bin/pkl
-        chmod +x /usr/local/bin/pkl
+        go get github.com/apple/pkl-go
+        go install github.com/apple/pkl-go/cmd/pkl-gen-go@v0.6.0
+        go install github.com/apple/pkl-go/cmd/pkl-gen-go@latest
 
     - name: Build
       if: inputs.go-skip-build == false
