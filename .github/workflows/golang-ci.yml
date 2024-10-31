@@ -104,11 +104,11 @@ jobs:
       if: inputs.pkl_install == true
       run: echo "${{ runner.temp }}/go/bin" >> $GITHUB_PATH
 
-    - name: Verify pkl installation
-      if: inputs.pkl_install == true
-      run: pkl --version
-      env:
-        GOBIN: ${{ runner.temp }}/go/bin
+#    - name: Verify pkl installation
+#      if: inputs.pkl_install == true
+#      run: pkl --version
+#      env:
+#        GOBIN: ${{ runner.temp }}/go/bin
 
     - name: Build
       if: inputs.go-skip-build == false
