@@ -98,6 +98,9 @@ jobs:
         go get github.com/apple/pkl-go
         go install github.com/apple/pkl-go/cmd/pkl-gen-go@v0.6.0
         go install github.com/apple/pkl-go/cmd/pkl-gen-go@latest
+        pkl --version
+      env:
+        GOBIN: ${{ runner.temp }}/go/bin
 
     - name: Build
       if: inputs.go-skip-build == false
