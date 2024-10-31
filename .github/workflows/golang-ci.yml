@@ -94,18 +94,23 @@ jobs:
 
     - name: Install pkl
       if: inputs.pkl_install == true
-      run: |
-        go get github.com/apple/pkl-go
-        go install github.com/apple/pkl-go/cmd/pkl-gen-go@v0.8.0
-        curl -L -o pkl 'https://github.com/apple/pkl/releases/download/0.26.3/pkl-linux-aarch64'
-        chmod +x pkl
-        ./pkl --version
-      env:
-        GOBIN: ${{ runner.temp }}/go/bin
+      uses: pkl-community/setup-pkl@v0
+      with:
+        pkl-version: 0.25.2
+#    - name: Install pkl
+#      if: inputs.pkl_install == true
+#      run: |
+#        go get github.com/apple/pkl-go
+#        go install github.com/apple/pkl-go/cmd/pkl-gen-go@v0.8.0
+#        curl -L -o pkl 'https://github.com/apple/pkl/releases/download/0.26.3/pkl-linux-aarch64'
+#        chmod +x pkl
+#        ./pkl --version
+#      env:
+#        GOBIN: ${{ runner.temp }}/go/bin
 
-    - name: Add GOBIN to PATH
-      if: inputs.pkl_install == true
-      run: echo "${{ runner.temp }}/go/bin" >> $GITHUB_PATH
+#    - name: Add GOBIN to PATH
+#      if: inputs.pkl_install == true
+#      run: echo "${{ runner.temp }}/go/bin" >> $GITHUB_PATH
 
 #    - name: Verify pkl installation
 #      if: inputs.pkl_install == true
