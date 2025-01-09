@@ -118,14 +118,14 @@ runs:
           cache-from: type=local,src=/tmp/.buildx-cache
           cache-to: type=local,dest=/tmp/.buildx-cache-new
     - name: Comment oneclick PR tag
-        if: (github.ref != 'refs/heads/master' || github.ref != 'refs/heads/main') && steps.findPr.outputs.number > 0
-        uses: marocchino/sticky-pull-request-comment@v2
-        with:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          header: OneClick PR tag
-          recreate: true
-          message: |
-            Your build has the tag `${{inputs.tag-prefix}}oneclickpr-${{ steps.findPr.outputs.pr }}-${{ env.BUILD_NUMBER }}`
+      if: (github.ref != 'refs/heads/master' || github.ref != 'refs/heads/main') && steps.findPr.outputs.number > 0
+      uses: marocchino/sticky-pull-request-comment@v2
+      with:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        header: OneClick PR tag
+        recreate: true
+        message: |
+          Your build has the tag `${{inputs.tag-prefix}}oneclickpr-${{ steps.findPr.outputs.pr }}-${{ env.BUILD_NUMBER }}`
     - name: Build and push Release
       if: contains(github.ref, 'release')
       uses: docker/build-push-action@v3
