@@ -40,6 +40,10 @@ inputs:
   git_fetch_submodules:
     description: "checkout and fetch submodules"
     default: "true"
+  github_token:
+    description: "github token"
+    required: true
+    default: ""
 runs:
   using: "composite"
   steps:
@@ -117,6 +121,15 @@ runs:
           build-args: ${{ inputs.build-args }}
           cache-from: type=local,src=/tmp/.buildx-cache
           cache-to: type=local,dest=/tmp/.buildx-cache-new
+    - name: Comment oneclick PR tag
+      if: (github.ref != 'refs/heads/master' || github.ref != 'refs/heads/main') && steps.findPr.outputs.number > 0
+      uses: marocchino/sticky-pull-request-comment@v2
+      with:
+        GITHUB_TOKEN: ${{ inputs.github_token }}
+        header: OneClick PR tag
+        recreate: true
+        message: |
+          Your build has the image tag: `${{inputs.tag-prefix}}oneclickpr-${{ steps.findPr.outputs.pr }}-${{ env.BUILD_NUMBER }}` :sparkles: 
     - name: Build and push Release
       if: contains(github.ref, 'release')
       uses: docker/build-push-action@v3

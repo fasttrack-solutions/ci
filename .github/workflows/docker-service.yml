@@ -34,7 +34,7 @@ on:
       FT_ECR_AWS_ACCESS_KEY_ID:
         required: true
       FT_ECR_AWS_SECRET_ACCESS_KEY:
-        required: true     
+        required: true
 
 jobs:
   build-service:
@@ -53,3 +53,4 @@ jobs:
         ecr_aws_secret_key: ${{ secrets.FT_ECR_AWS_SECRET_ACCESS_KEY }}
         start-build-from: ${{ inputs.start-build-from }}
         git_fetch_submodules: ${{ inputs.git_fetch_submodules }}
+        github_token: ${{ secrets.GITHUB_TOKEN }}
