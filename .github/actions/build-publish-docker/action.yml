@@ -123,7 +123,7 @@ runs:
           cache-to: type=local,dest=/tmp/.buildx-cache-new
     - name: Comment oneclick PR tag
       if: (github.ref != 'refs/heads/master' || github.ref != 'refs/heads/main') && steps.findPr.outputs.number > 0
-      uses: marocchino/sticky-pull-request-comment@v2.9.0
+      uses: marocchino/sticky-pull-request-comment@v2
       with:
         GITHUB_TOKEN: ${{ inputs.github_token }}
         header: OneClick PR tag
