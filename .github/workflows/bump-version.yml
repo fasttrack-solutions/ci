@@ -49,7 +49,7 @@ jobs:
         id: tag_version_lib
         uses: mathieudutour/github-tag-action@v5.6
         with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
+          github_token: ${{ secrets.token }}
       - if: ${{ inputs.create-release == true && inputs.is-library == false && (github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main') }}
         name: Create a GitHub release (service)
         uses: actions/create-release@v1
