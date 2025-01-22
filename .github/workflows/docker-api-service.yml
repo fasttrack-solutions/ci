@@ -51,6 +51,7 @@ jobs:
         ecr_aws_access_key_id: ${{ secrets.FT_ECR_AWS_ACCESS_KEY_ID }}
         ecr_aws_secret_key: ${{ secrets.FT_ECR_AWS_SECRET_ACCESS_KEY }}
         start-build-from: ${{ inputs.start-build-from }}
+        github_token: ${{ secrets.GITHUB_TOKEN }}
   build-api:
     runs-on: ubuntu-latest
     steps:    
@@ -65,3 +66,4 @@ jobs:
         ecr_aws_access_key_id: ${{ secrets.FT_ECR_AWS_ACCESS_KEY_ID }}
         ecr_aws_secret_key: ${{ secrets.FT_ECR_AWS_SECRET_ACCESS_KEY }}   
         start-build-from: ${{ inputs.start-build-from }}
+        github_token: ${{ secrets.GITHUB_TOKEN }}
