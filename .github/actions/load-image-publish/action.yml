@@ -83,6 +83,8 @@ runs:
           BUILD_TAG="${{ inputs.tag-prefix }}oneclick-${{ env.BUILD_NUMBER }}"
         fi
 
+        echo "BUILD TAG: ${BUILD_TAG}"
+
         # Define the IMAGE variable explicitly
         IMAGE="${{ steps.login-ecr.outputs.registry }}/${{inputs.image}}:$BUILD_TAG"
 
