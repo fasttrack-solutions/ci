@@ -82,7 +82,7 @@ jobs:
         key: ${{ secrets.FT_SSH_KEY }}
         known_hosts: ${{ secrets.FT_BITBUCKET_KNOWN_HOSTS }}
     - name: Setup Golang with cache
-      uses: magnetikonline/action-golang-cache@v2
+      uses: magnetikonline/action-golang-cache@v5
       with:
        go-version: ${{ inputs.go-version }}
 
@@ -98,9 +98,17 @@ jobs:
       with:
         pkl-version: 0.25.2
 
+    - name: Download Go modules
+      if: inputs.go-skip-build == false
+      run: go mod download
+      
+    - name: Verify Go modules
+      if: inputs.go-skip-build == false
+      run: go mod verify
+      
     - name: Build
       if: inputs.go-skip-build == false
-      run: go build -v ./...
+      run: go build ./...
 
     - name: Test Dir
       run: mkdir test-reports
