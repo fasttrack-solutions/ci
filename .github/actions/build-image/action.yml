@@ -84,7 +84,6 @@ runs:
           platforms: linux/amd64
           push: false
           outputs: type=docker,dest=${{ runner.temp }}/image.tar
-          tags: ${{ steps.login-ecr.outputs.registry }}/${{inputs.image}}:${{inputs.tag-prefix}}oneclick-${{ env.BUILD_NUMBER }}
           file: ${{inputs.dockerfile}}
           build-args: ${{ inputs.build-args }}
           cache-from: type=local,src=/tmp/.buildx-cache
@@ -97,7 +96,6 @@ runs:
           platforms: linux/amd64
           push: false
           outputs: type=docker,dest=${{ runner.temp }}/image.tar
-          tags: ${{ steps.login-ecr.outputs.registry }}/${{inputs.image}}:${{inputs.tag-prefix}}oneclickpr-${{ steps.findPr.outputs.pr }}-${{ env.BUILD_NUMBER }}
           file: ${{inputs.dockerfile}}
           build-args: ${{ inputs.build-args }}
           cache-from: type=local,src=/tmp/.buildx-cache
@@ -119,7 +117,6 @@ runs:
           platforms: linux/amd64
           push: false
           outputs: type=docker,dest=${{ runner.temp }}/image.tar
-          tags: ${{ steps.login-ecr.outputs.registry }}/${{inputs.image}}:${{inputs.tag-prefix}}oneclickrelease-${{ env.BUILD_NUMBER }}
           file: ${{inputs.dockerfile}}
           build-args: ${{ inputs.build-args }}
           cache-from: type=local,src=/tmp/.buildx-cache
