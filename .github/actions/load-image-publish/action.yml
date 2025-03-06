@@ -62,9 +62,10 @@ runs:
       with:
         state: open
 
-    - name: Determine Image Tag
+    - name: Determine tag, build and push Docker image
       shell: bash
       run: |
+        # Determine BUILD_TAG based on git reference
         if [[ "${{ github.ref }}" == "refs/heads/master" || "${{ github.ref }}" == "refs/heads/main" ]]; then
           BUILD_TAG="${{ inputs.tag-prefix }}oneclick-${{ env.BUILD_NUMBER }}"
         elif [[ "${{ github.ref }}" == *"release"* ]]; then
@@ -74,10 +75,13 @@ runs:
         else
           BUILD_TAG="${{ inputs.tag-prefix }}oneclick-${{ env.BUILD_NUMBER }}"
         fi
+    
+        # Export BUILD_TAG to GitHub environment
         echo "BUILD_TAG=$BUILD_TAG" >> $GITHUB_ENV
-
-    - name: Tag and push Docker image
-      shell: bash    
-      run: |
-        docker push $IMAGE
-        echo "BUILD_TAG=$BUILD_TAG" >> $GITHUB_ENV
+    
+        # Define the IMAGE variable explicitly
+        IMAGE="your-docker-repo/your-image-name:$BUILD_TAG"
+        echo "IMAGE=$IMAGE" >> $GITHUB_ENV
+    
+        # Push the Docker image
+        docker push "$IMAGE"
