@@ -48,11 +48,38 @@ runs:
         docker load --input ${{ runner.temp }}/image.tar
         docker image ls -a
 
+    - name: Set tag
+      shell: bash
+      env:
+        RUN_NUMBER: ${{ github.run_number }}
+        START_FROM: ${{ inputs.start-build-from || 0 }}
+      run: |
+        BUILD_NUMBER=$(($RUN_NUMBER + $START_FROM))
+        echo "BUILD_NUMBER=$BUILD_NUMBER" >> $GITHUB_ENV
+    
+    - uses: jwalton/gh-find-current-pr@v1
+      id: findPr
+      with:
+        state: open
+    
+    - name: Determine Image Tag
+      shell: bash
+      run: |
+        if [[ "${{ github.ref }}" == "refs/heads/master" || "${{ github.ref }}" == "refs/heads/main" ]]; then
+          BUILD_TAG="${{ inputs.tag-prefix }}oneclick-${{ env.BUILD_NUMBER }}"
+        elif [[ "${{ github.ref }}" == *"release"* ]]; then
+          BUILD_TAG="${{ inputs.tag-prefix }}oneclickrelease-${{ env.BUILD_NUMBER }}"
+        elif [[ -n "${{ steps.findPr.outputs.pr }}" ]]; then
+          BUILD_TAG="${{ inputs.tag-prefix }}oneclickpr-${{ steps.findPr.outputs.pr }}-${{ env.BUILD_NUMBER }}"
+        else
+          BUILD_TAG="${{ inputs.tag-prefix }}oneclick-${{ env.BUILD_NUMBER }}"
+        fi
+        echo "BUILD_TAG=$BUILD_TAG" >> $GITHUB_ENV
+    
     - name: Tag and push Docker image
       shell: bash    
       run: |
-        BUILD_TAG=${{inputs.tag-prefix}}${{github.run_number}}
-        IMAGE=${{steps.login-ecr.outputs.registry}}/${{inputs.image}}:$BUILD_TAG
-        docker tag ${{inputs.image}}:latest $IMAGE
+        IMAGE=${{ steps.login-ecr.outputs.registry }}/${{ inputs.image }}:${{ env.BUILD_TAG }}
+        docker tag ${{ inputs.image }}:latest $IMAGE
         docker push $IMAGE
-        echo "BUILD_TAG=$BUILD_TAG" >> $GITHUB_ENV
+            echo "BUILD_TAG=$BUILD_TAG" >> $GITHUB_ENV

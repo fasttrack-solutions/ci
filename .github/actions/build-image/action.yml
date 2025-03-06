@@ -36,33 +36,105 @@ runs:
   using: composite
   steps:
     - uses: actions/checkout@v3
+      if: inputs.git_fetch_submodules == 'true'
       with:
         submodules: recursive
-        ssh-key: ${{ inputs.ssh_key }}
-
+        ssh-key: ${{ inputs.ssh_key }}    
+    - uses: actions/checkout@v3
+      if: inputs.git_fetch_submodules != 'true'      
     - name: Install SSH Key
-      uses: shimataro/ssh-key-action@v2
+      # You may pin to the exact commit or the version.
+      # uses: shimataro/ssh-key-action@3c9b0fc6f2d223b8450b02a0445f526350fc73e0
+      uses: shimataro/ssh-key-action@v2.3.1
       with:
         key: ${{ inputs.ssh_key }}
-        known_hosts: ${{ inputs.ssh_known_hosts }}
-
+        known_hosts: ${{ inputs.ssh_known_hosts }}         
+    - name: Copy SSH Key
+      shell: bash
+      run: cp ~/.ssh/id_rsa .  
     - name: Set up Docker Buildx
       uses: docker/setup-buildx-action@v2
-
     - name: Set tag
       shell: bash
+      env:
+        RUN_NUMBER: ${{github.run_number}}
+        START_FROM: ${{inputs.start-build-from}}
       run: |
-        BUILD_TAG=${{inputs.tag-prefix}}${{github.run_number}}
-        echo "BUILD_TAG=$BUILD_TAG" >> $GITHUB_ENV
-
-    - name: Build and export
+        echo $RUN_NUMBER
+        echo $(($RUN_NUMBER+$START_FROM))
+        echo BUILD_NUMBER=$(($RUN_NUMBER+$START_FROM)) >> $GITHUB_ENV
+    - uses: jwalton/gh-find-current-pr@v1
+      id: findPr
+      with:
+        # Can be "open", "closed", or "all".  Defaults to "open".
+        state: open         
+    - name: Cache Docker layers
+      continue-on-error: true
+      uses: actions/cache@v3
+      with:
+         path: /tmp/.buildx-cache
+         key: ${{ runner.os }}-buildx-${{ github.sha }}
+         restore-keys: |
+           ${{ runner.os }}-buildx-      
+    - name: Build and push
+      if: github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main'
       uses: docker/build-push-action@v3
       with:
-        context: .
-        dockerfile: ${{inputs.dockerfile}}
-        platforms: linux/amd64
-        push: false
-        outputs: type=docker,dest=${{ runner.temp }}/image.tar
+          context: .
+          platforms: linux/amd64
+          push: false
+          outputs: type=docker,dest=${{ runner.temp }}/image.tar
+          tags: ${{ steps.login-ecr.outputs.registry }}/${{inputs.image}}:${{inputs.tag-prefix}}oneclick-${{ env.BUILD_NUMBER }}
+          file: ${{inputs.dockerfile}}
+          build-args: ${{ inputs.build-args }}
+          cache-from: type=local,src=/tmp/.buildx-cache
+          cache-to: type=local,dest=/tmp/.buildx-cache-new
+    - name: Build and push PR
+      if: (github.ref != 'refs/heads/master' || github.ref != 'refs/heads/main') && steps.findPr.outputs.number > 0
+      uses: docker/build-push-action@v3
+      with:
+          context: .
+          platforms: linux/amd64
+          push: false
+          outputs: type=docker,dest=${{ runner.temp }}/image.tar
+          tags: ${{ steps.login-ecr.outputs.registry }}/${{inputs.image}}:${{inputs.tag-prefix}}oneclickpr-${{ steps.findPr.outputs.pr }}-${{ env.BUILD_NUMBER }}
+          file: ${{inputs.dockerfile}}
+          build-args: ${{ inputs.build-args }}
+          cache-from: type=local,src=/tmp/.buildx-cache
+          cache-to: type=local,dest=/tmp/.buildx-cache-new
+    - name: Comment oneclick PR tag
+      if: (github.ref != 'refs/heads/master' || github.ref != 'refs/heads/main') && steps.findPr.outputs.number > 0
+      uses: marocchino/sticky-pull-request-comment@v2
+      with:
+        GITHUB_TOKEN: ${{ inputs.github_token }}
+        header: OneClick PR tag
+        recreate: true
+        message: |
+          Your build has the image tag: `${{inputs.tag-prefix}}oneclickpr-${{ steps.findPr.outputs.pr }}-${{ env.BUILD_NUMBER }}` :sparkles: 
+    - name: Build and push Release
+      if: contains(github.ref, 'release')
+      uses: docker/build-push-action@v3
+      with:
+          context: .
+          platforms: linux/amd64
+          push: false
+          outputs: type=docker,dest=${{ runner.temp }}/image.tar
+          tags: ${{ steps.login-ecr.outputs.registry }}/${{inputs.image}}:${{inputs.tag-prefix}}oneclickrelease-${{ env.BUILD_NUMBER }}
+          file: ${{inputs.dockerfile}}
+          build-args: ${{ inputs.build-args }}
+          cache-from: type=local,src=/tmp/.buildx-cache
+          cache-to: type=local,dest=/tmp/.buildx-cache-new
+      # This ugly bit is necessary if you don't want your cache to grow forever
+      # until it hits GitHub's limit of 5GB.
+      # Temp fix
+      # https://github.com/docker/build-push-action/issues/252
+      # https://github.com/moby/buildkit/issues/1896
+    - name: Move cache
+      continue-on-error: true
+      shell: bash
+      run: |
+        rm -rf /tmp/.buildx-cache
+        mv /tmp/.buildx-cache-new /tmp/.buildx-cache
 
     - name: Upload Docker Artifact
       uses: actions/upload-artifact@v4
