@@ -52,3 +52,5 @@ jobs:
         start-build-from: ${{ inputs.start-build-from }}
         git_fetch_submodules: ${{ inputs.git_fetch_submodules }}
         github_token: ${{ secrets.GITHUB_TOKEN }}
+        ecr_aws_access_key_id: ${{ secrets.FT_ECR_AWS_ACCESS_KEY_ID }}
+        ecr_aws_secret_key: ${{ secrets.FT_ECR_AWS_SECRET_ACCESS_KEY }}        
