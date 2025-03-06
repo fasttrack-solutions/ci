@@ -80,6 +80,6 @@ runs:
       shell: bash    
       run: |
         IMAGE=${{ steps.login-ecr.outputs.registry }}/${{ inputs.image }}:${{ env.BUILD_TAG }}
-        docker tag ${{ inputs.image }}:latest $IMAGE
+        docker tag ${{ steps.login-ecr.outputs.registry }}/${{ inputs.image }}:latest $IMAGE
         docker push $IMAGE
-            echo "BUILD_TAG=$BUILD_TAG" >> $GITHUB_ENV
+        echo "BUILD_TAG=$BUILD_TAG" >> $GITHUB_ENV
