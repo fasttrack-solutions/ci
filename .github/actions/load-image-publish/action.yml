@@ -1,0 +1,58 @@
+name: "Load & Publish Docker Image"
+description: "Load Docker image from artifact and publish to ECR"
+inputs:
+  image:
+    description: "service to build"
+    required: true
+    default: ""
+  tag-prefix:
+    description: "tag prefix"
+    required: true
+    default: ""   
+  ecr_aws_access_key_id:
+    description: "ecr aws access key id"
+    required: true
+    default: ""      
+  ecr_aws_secret_key:
+    description: "ecr aws secret key"
+    required: true
+    default: "" 
+outputs:
+  image-tag:
+    description: "Pushed image tag"
+    value: ${{ env.BUILD_TAG }}
+
+runs:
+  using: "composite"
+  steps:
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v3
+      with:
+        aws-access-key-id: ${{ inputs.ecr_aws_access_key_id }}
+        aws-secret-access-key: ${{ inputs.ecr_aws_secret_key }}
+        aws-region: us-east-1
+
+    - name: Login to Amazon ECR
+      uses: aws-actions/amazon-ecr-login@v2
+      id: login-ecr
+
+    - name: Download artifact
+      uses: actions/download-artifact@v4
+      with:
+        name: docker-image-${{inputs.image}}
+        path: ${{ runner.temp }}
+
+    - name: Load image
+      shell: bash    
+      run: |
+        docker load --input ${{ runner.temp }}/image.tar
+        docker image ls -a
+
+    - name: Tag and push Docker image
+      shell: bash    
+      run: |
+        BUILD_TAG=${{inputs.tag-prefix}}${{github.run_number}}
+        IMAGE=${{steps.login-ecr.outputs.registry}}/${{inputs.image}}:$BUILD_TAG
+        docker tag ${{inputs.image}}:latest $IMAGE
+        docker push $IMAGE
+        echo "BUILD_TAG=$BUILD_TAG" >> $GITHUB_ENV

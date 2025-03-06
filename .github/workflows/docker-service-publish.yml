@@ -1,0 +1,50 @@
+name: Docker Build Service
+
+on:
+  workflow_call:
+    inputs:
+      image:
+        required: true
+        type: string
+      tag-prefix:
+        required: false
+        type: string
+        default: ""        
+      dockerfile:
+        required: false
+        type: string
+        default: "./deployments/docker/Dockerfile"
+      build-args:
+        required: false
+        type: string
+        default: ""
+      start-build-from:
+        required: false
+        type: string  
+        default: "0" 
+      git_fetch_submodules: 
+        required: false                            
+        type: string
+        default: "true"
+    secrets:
+      FT_SSH_KEY:
+        required: true
+      FT_BITBUCKET_KNOWN_HOSTS:
+        required: true 
+      FT_ECR_AWS_ACCESS_KEY_ID:
+        required: true
+      FT_ECR_AWS_SECRET_ACCESS_KEY:
+        required: true
+
+jobs:
+  build-service:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Build & Publish
+      uses: fasttrack-solutions/ci/.github/actions/load-image-publish@main
+      with:
+        image: ${{ inputs.image }}
+        tag-prefix: ${{ inputs.tag-prefix }}  
+        ecr_aws_access_key_id: ${{ secrets.FT_ECR_AWS_ACCESS_KEY_ID }}
+        ecr_aws_secret_key: ${{ secrets.FT_ECR_AWS_SECRET_ACCESS_KEY }}
+        github_token: ${{ secrets.GITHUB_TOKEN }}

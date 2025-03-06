@@ -1,0 +1,71 @@
+name: "Build & Export Docker Image"
+description: "Build and export Docker image as artifact"
+inputs:
+  start-build-from:
+    description: "the build number to start from"
+    required: false
+    default: "0"
+  image:
+    description: "service to build"
+    required: true
+    default: ""
+  tag-prefix:
+    description: "tag prefix"
+    required: true
+    default: ""    
+  dockerfile:
+    description: "docker file"
+    required: true
+    default: ""
+  build-args:
+    description: "set build-time variables"
+    required: false
+    default: ""
+  ssh_key:    
+    description: "ssh key"
+    required: true
+    default: ""
+  ssh_known_hosts:
+    description: "ssh known hosts"
+    required: true
+    default: ""
+  git_fetch_submodules:
+    description: "checkout and fetch submodules"
+    default: "true"
+runs:
+  using: composite
+  steps:
+    - uses: actions/checkout@v3
+      with:
+        submodules: recursive
+        ssh-key: ${{ inputs.ssh_key }}
+
+    - name: Install SSH Key
+      uses: shimataro/ssh-key-action@v2
+      with:
+        key: ${{ inputs.ssh_key }}
+        known_hosts: ${{ inputs.ssh_known_hosts }}
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v2
+
+    - name: Set tag
+      shell: bash
+      run: |
+        BUILD_TAG=${{inputs.tag-prefix}}${{github.run_number}}
+        echo "BUILD_TAG=$BUILD_TAG" >> $GITHUB_ENV
+
+    - name: Build and export
+      uses: docker/build-push-action@v3
+      with:
+        context: .
+        dockerfile: ${{inputs.dockerfile}}
+        platforms: linux/amd64
+        push: false
+        outputs: type=docker,dest=${{ runner.temp }}/image.tar
+
+    - name: Upload Docker Artifact
+      uses: actions/upload-artifact@v3
+      with:
+        name: docker-image-${{inputs.image}}
+        path: ${{ runner.temp }}/image.tar
