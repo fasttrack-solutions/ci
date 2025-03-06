@@ -79,7 +79,5 @@ runs:
     - name: Tag and push Docker image
       shell: bash    
       run: |
-        IMAGE=${{ steps.login-ecr.outputs.registry }}/${{ inputs.image }}:${{ env.BUILD_TAG }}
-        docker tag ${{ steps.login-ecr.outputs.registry }}/${{ inputs.image }}:latest $IMAGE
         docker push $IMAGE
         echo "BUILD_TAG=$BUILD_TAG" >> $GITHUB_ENV
