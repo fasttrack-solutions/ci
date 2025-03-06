@@ -45,7 +45,7 @@ runs:
     - name: Load image
       shell: bash    
       run: |
-        docker load --input ${{ runner.temp }}/image.tar
+        docker load --input ${{ runner.temp }}/image${{inputs.tag-prefix}}.tar
         docker image ls -a
 
     - name: Set tag
@@ -56,12 +56,12 @@ runs:
       run: |
         BUILD_NUMBER=$(($RUN_NUMBER + $START_FROM))
         echo "BUILD_NUMBER=$BUILD_NUMBER" >> $GITHUB_ENV
-    
+
     - uses: jwalton/gh-find-current-pr@v1
       id: findPr
       with:
         state: open
-    
+
     - name: Determine Image Tag
       shell: bash
       run: |
@@ -75,7 +75,7 @@ runs:
           BUILD_TAG="${{ inputs.tag-prefix }}oneclick-${{ env.BUILD_NUMBER }}"
         fi
         echo "BUILD_TAG=$BUILD_TAG" >> $GITHUB_ENV
-    
+
     - name: Tag and push Docker image
       shell: bash    
       run: |
