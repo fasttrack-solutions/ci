@@ -82,6 +82,7 @@ jobs:
         key: ${{ secrets.FT_SSH_KEY }}
         known_hosts: ${{ secrets.FT_BITBUCKET_KNOWN_HOSTS }}
     - name: Setup Golang with cache
+      id: golang-with-cache    
       uses: magnetikonline/action-golang-cache@v5
       with:
        go-version: ${{ inputs.go-version }}
@@ -131,3 +132,11 @@ jobs:
       uses: codecov/codecov-action@v3
       env:
         CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+    - name: Save Golang cache
+      if: always()
+      uses: actions/cache/save@v4
+      with:
+        path: |
+          ${{ steps.golang-with-cache.outputs.build-cache-path }}
+          ${{ steps.golang-with-cache.outputs.module-cache-path }}
+        key: ${{ steps.golang-with-cache.outputs.cache-key }}        
