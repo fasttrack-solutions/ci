@@ -39,7 +39,7 @@ runs:
     - name: Download artifact
       uses: actions/download-artifact@v4
       with:
-        name: docker-image-${{inputs.image}}
+        name: docker-image-${{inputs.image}}${{inputs.tag-prefix}}
         path: ${{ runner.temp }}
 
     - name: Load image
