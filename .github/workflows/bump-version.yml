@@ -61,6 +61,7 @@ jobs:
           body: ${{ steps.tag_version.outputs.changelog }}
       - if: ${{ inputs.create-release == true && inputs.is-library == true && (github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main') }}
         name: Create a GitHub release (library)
+        id: create_release_lib
         uses: actions/create-release@v1
         env:
           GITHUB_TOKEN: ${{ secrets.token }}
@@ -68,6 +69,9 @@ jobs:
           tag_name: ${{ steps.tag_version_lib.outputs.new_tag }}
           release_name: Release ${{ steps.tag_version_lib.outputs.new_tag }}
           body: ${{ steps.tag_version_lib.outputs.changelog }}
+      - name: Set release URL output
+        if: ${{ inputs.create-release == true && inputs.is-library == true && (github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main') }}
+        run: echo "RELEASE_URL=${{ steps.create_release_lib.outputs.upload_url }}" >> $GITHUB_ENV                    
       - name: Bump version and push tag PR (service)
         if: ${{ inputs.is-library == false && (github.ref != 'refs/heads/master' || github.ref != 'refs/heads/main') && steps.findPr.outputs.number > 0 }}
         id: tag_version_pr
