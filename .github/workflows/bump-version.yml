@@ -71,9 +71,11 @@ jobs:
           tag_name: ${{ steps.tag_version_lib.outputs.new_tag }}
           release_name: Release ${{ steps.tag_version_lib.outputs.new_tag }}
           body: ${{ steps.tag_version_lib.outputs.changelog }}
-      - name: Set output for upload URL
+      - name: Set output for release URL
+        id: set_output
         if: ${{ inputs.create-release == true && inputs.is-library == true && (github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main') }}
-        run: echo "::set-output name=upload_url::${{ steps.create_release_lib.outputs.upload_url }}"
+        run: |
+          echo "upload_url=${{ steps.create_release_lib.outputs.upload_url }}" >> $GITHUB_ENV
       - name: Bump version and push tag PR (service)
         if: ${{ inputs.is-library == false && (github.ref != 'refs/heads/master' || github.ref != 'refs/heads/main') && steps.findPr.outputs.number > 0 }}
         id: tag_version_pr
