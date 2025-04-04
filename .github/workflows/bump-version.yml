@@ -75,7 +75,7 @@ jobs:
         id: set_output
         if: ${{ inputs.create-release == true && inputs.is-library == true && (github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main') }}
         run: |
-          echo "upload_url=${{ steps.create_release_lib.outputs.upload_url }}" >> $GITHUB_ENV
+          echo "upload_url=${{ steps.create_release_lib.outputs.upload_url }}" >> $GITHUB_OUTPUT
       - name: Bump version and push tag PR (service)
         if: ${{ inputs.is-library == false && (github.ref != 'refs/heads/master' || github.ref != 'refs/heads/main') && steps.findPr.outputs.number > 0 }}
         id: tag_version_pr
