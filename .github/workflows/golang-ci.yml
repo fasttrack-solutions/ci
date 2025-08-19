@@ -6,7 +6,7 @@ on:
       go-version:
         required: true
         type: string
-        default: "~1.18"
+        default: "~1.25"
       go-skip-build:
         required: false
         type: boolean
