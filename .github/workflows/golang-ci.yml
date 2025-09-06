@@ -139,7 +139,7 @@ jobs:
       run: mkdir test-reports
 
     - name: Get gotestsum
-      run: go install gotest.tools/gotestsum@v1.12.1
+      run: go install gotest.tools/gotestsum@v1.12.3
 
     - name: Run Test
       run:  MYSQL_VERSION=${{ inputs.go-test-mysql-version }} gotestsum --junitfile test-reports/report.xml -- -timeout ${{ inputs.go-test-timeout }} -parallel=5 -covermode=atomic -coverprofile=cover.out ./...
