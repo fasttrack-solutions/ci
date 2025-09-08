@@ -1,0 +1,264 @@
+name: Golang-CI-v2
+
+on:
+  workflow_call:
+    inputs:
+      go-version:
+        required: true
+        type: string
+        default: "~1.18"
+      go-skip-build:
+        required: false
+        type: boolean
+        default: false
+      go-test-timeout:
+        required: false
+        type: string
+        default: "10m"
+      go-test-mysql-version:
+        required: false
+        type: string
+        default: "8"
+      enable-vips:
+        required: false
+        type: boolean
+        default: false
+      python_pip_install:
+        description: "install python packages"
+        type: boolean
+        default: false
+      pkl_install:
+        description: "install pkl"
+        type: boolean
+        default: false
+      runner:
+        description: "runner to be used by the workflow"
+        required: false
+        type: string
+        default: "ubuntu-latest"
+      dockerhub_username:
+        description: "dockerhub username"
+        required: false
+        type: string
+        default: "tazerr"
+      enable_integration:
+        description: "run integration test suite"
+        type: boolean
+        default: true
+      integration_packages:
+        description: "go package pattern for integration tests"
+        type: string
+        default: "./test/integration/..."
+    secrets:
+      FT_SSH_KEY:
+        required: true
+      FT_BITBUCKET_KNOWN_HOSTS:
+        required: true
+      CODECOV_TOKEN:
+        required: false
+      DOCKERHUB_PULL_TOKEN:
+        required: true
+
+concurrency:
+  group: golang-ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+
+  build:
+    runs-on: ${{ inputs.runner }}
+    services:
+      dind:
+        image: docker:23.0-rc-dind-rootless
+        ports: [ "2375:2375" ]
+    env:
+      GOPRIVATE: bitbucket.org/fasttrackdevteam,github.com/fasttrack-solutions
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Docker Hub login
+        run: echo "${{ secrets.DOCKERHUB_PULL_TOKEN }}" | docker login -u "${{ inputs.dockerhub_username }}" --password-stdin
+
+      - name: Load Docker cache
+        if: always()
+        uses: actions/cache@v4
+        with:
+          path: /tmp/docker-cache
+          key: docker-cache-${{ runner.os }}-${{ github.sha }}
+          restore-keys: |
+            docker-cache-${{ runner.os }}-
+
+      - name: Git config setup for Bitbucket
+        run: git config --global url."git@bitbucket.org:fasttrackdevteam".insteadOf "https://bitbucket.org/fasttrackdevteam"
+
+      - name: Git config setup for GitHub
+        run: git config --global url."git@github.com:".InsteadOf https://github.com/
+
+      - name: Install SSH Key (for private Go modules)
+        uses: shimataro/ssh-key-action@v2.6.1
+        with:
+          key: ${{ secrets.FT_SSH_KEY }}
+          known_hosts: ${{ secrets.FT_BITBUCKET_KNOWN_HOSTS }}
+
+      - name: Setup Go (with cache)
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ inputs.go-version }}
+          cache: true
+
+      - name: Update apt
+        if: ${{ inputs.enable-vips }}
+        env:
+          DEBIAN_FRONTEND: noninteractive
+        run: sudo apt-get update -qq -o Acquire::Retries=3
+
+      - name: Install libvips
+        if: ${{ inputs.enable-vips }}
+        env:
+          DEBIAN_FRONTEND: noninteractive
+        run: |
+          sudo apt-get install --fix-missing -qq -o Acquire::Retries=3 \
+            libvips libvips-dev
+
+      - name: pip install
+        if: ${{ inputs.python_pip_install }}
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Install pkl
+        if: ${{ inputs.pkl_install }}
+        uses: pkl-community/setup-pkl@v0
+        with:
+          pkl-version: 0.25.2
+
+      - name: Download Go modules
+        if: ${{ !inputs.go-skip-build }}
+        run: go mod download
+
+      - name: Verify Go modules
+        if: ${{ !inputs.go-skip-build }}
+        run: go mod verify
+
+      - name: Build
+        if: ${{ !inputs.go-skip-build }}
+        run: go build ./...
+
+  tests:
+    # Skip the integration shard entirely when enable_integration is false
+    if: ${{ !(matrix.suite == 'integration' && inputs.enable_integration == false) }}
+    needs: build
+    runs-on: ${{ inputs.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        suite: [ unit, integration ]
+    env:
+      GOPRIVATE: bitbucket.org/fasttrackdevteam,github.com/fasttrack-solutions
+      MYSQL_VERSION: ${{ inputs.go-test-mysql-version }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Go (with cache)
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ inputs.go-version }}
+          cache: true
+
+      - name: Docker Hub login
+        run: echo "${{ secrets.DOCKERHUB_PULL_TOKEN }}" | docker login -u "${{ inputs.dockerhub_username }}" --password-stdin
+
+      - name: Restore Docker cache
+        uses: actions/cache@v4
+        with:
+          path: /tmp/docker-cache
+          key: docker-cache-${{ runner.os }}-${{ github.sha }}
+          restore-keys: |
+            docker-cache-${{ runner.os }}-
+
+      - name: Install test runner (gotestsum)
+        run: go install gotest.tools/gotestsum@v1.12.3
+
+      - name: Prepare reports & coverage dirs
+        run: |
+          mkdir -p test-reports/${{ matrix.suite }}
+          mkdir -p cover/${{ matrix.suite }}
+
+      - name: Run ${{ matrix.suite }} tests (with GOCOVERDIR)
+        env:
+          GOCOVERDIR: cover/${{ matrix.suite }}
+        run: |
+          set -euo pipefail
+          if [ "${{ matrix.suite }}" = "unit" ]; then
+            PKGS=$(go list ./... | grep -vE '^.*/test($|/)')
+            if [ -z "$PKGS" ]; then echo "No unit packages found"; exit 0; fi
+            gotestsum --junitfile test-reports/${{ matrix.suite }}/report.xml -- \
+              -timeout ${{ inputs.go-test-timeout }} -parallel=5 -race -count=1 $PKGS
+          else
+            PKGS=$(go list ${{ inputs.integration_packages }} 2>/dev/null || true)
+            if [ -z "$PKGS" ]; then echo "No integration packages found"; exit 0; fi
+            gotestsum --format=testname --junitfile test-reports/${{ matrix.suite }}/report.xml -- \
+              -race -failfast -count=1 $PKGS
+          fi
+
+      - name: Publish JUnit for ${{ matrix.suite }}
+        uses: dorny/test-reporter@v1
+        if: success() || failure()
+        with:
+          name: ${{ matrix.suite }} tests
+          path: test-reports/${{ matrix.suite }}/*.xml
+          reporter: java-junit
+
+      - name: Upload coverage shard (${{ matrix.suite }})
+        uses: actions/upload-artifact@v4
+        with:
+          name: cover-${{ matrix.suite }}
+          path: cover/${{ matrix.suite }}
+          if-no-files-found: warn
+
+  coverage-merge:
+    needs: tests
+    runs-on: ${{ inputs.runner }}
+    steps:
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ inputs.go-version }}
+
+      - name: Download coverage shards
+        uses: actions/download-artifact@v4
+        with:
+          pattern: cover-*
+          path: cover
+          merge-multiple: true
+
+      - name: Merge coverage and produce coverage.out
+        run: |
+          set -euo pipefail
+          ls -R cover || true
+          INPUTS=""
+          [ -d cover/unit ] && INPUTS="${INPUTS:+$INPUTS,}cover/unit"
+          [ -d cover/integration ] && INPUTS="${INPUTS:+$INPUTS,}cover/integration"
+          if [ -z "$INPUTS" ]; then
+            echo "No coverage inputs found; creating empty coverage.out"
+            : > coverage.out
+          else
+            mkdir -p merged
+            go tool covdata merge -i="$INPUTS" -o=merged
+            go tool covdata textfmt -i=merged -o=coverage.out
+            go tool cover -func=coverage.out | tail -n 1 || true
+          fi
+
+      - name: Upload merged coverage artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-merged
+          path: coverage.out
+
+      - name: Upload coverage to Codecov (single upload)
+        if: ${{ hashFiles('coverage.out') != '' }}
+        uses: codecov/codecov-action@v4
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: coverage.out
+          fail_ci_if_error: false
