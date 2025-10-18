@@ -9,7 +9,7 @@ on:
       tag-prefix:
         required: false
         type: string
-        default: ""        
+        default: ""
       dockerfile:
         required: false
         type: string
@@ -20,17 +20,21 @@ on:
         default: ""
       start-build-from:
         required: false
-        type: string  
-        default: "0" 
-      git_fetch_submodules: 
-        required: false                            
+        type: string
+        default: "0"
+      git_fetch_submodules:
+        required: false
         type: string
         default: "true"
+      latest_tag:
+        required: false
+        type: string
+        default: "false"
     secrets:
       FT_SSH_KEY:
         required: true
       FT_BITBUCKET_KNOWN_HOSTS:
-        required: true 
+        required: true
       FT_ECR_AWS_ACCESS_KEY_ID:
         required: true
       FT_ECR_AWS_SECRET_ACCESS_KEY:
@@ -40,17 +44,18 @@ jobs:
   build-service:
     runs-on: ubuntu-latest
     steps:
-    - name: Build & Publish
-      uses: fasttrack-solutions/ci/.github/actions/build-publish-docker@main
-      with:
-        image: ${{ inputs.image }}
-        tag-prefix: ${{ inputs.tag-prefix }}
-        dockerfile: ${{ inputs.dockerfile }}
-        build-args: ${{ inputs.build-args }}
-        ssh_key: ${{ secrets.FT_SSH_KEY }}
-        ssh_known_hosts: ${{ secrets.FT_BITBUCKET_KNOWN_HOSTS }}    
-        ecr_aws_access_key_id: ${{ secrets.FT_ECR_AWS_ACCESS_KEY_ID }}
-        ecr_aws_secret_key: ${{ secrets.FT_ECR_AWS_SECRET_ACCESS_KEY }}
-        start-build-from: ${{ inputs.start-build-from }}
-        git_fetch_submodules: ${{ inputs.git_fetch_submodules }}
-        github_token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build & Publish
+        uses: fasttrack-solutions/ci/.github/actions/build-publish-docker@main
+        with:
+          image: ${{ inputs.image }}
+          tag-prefix: ${{ inputs.tag-prefix }}
+          dockerfile: ${{ inputs.dockerfile }}
+          build-args: ${{ inputs.build-args }}
+          ssh_key: ${{ secrets.FT_SSH_KEY }}
+          ssh_known_hosts: ${{ secrets.FT_BITBUCKET_KNOWN_HOSTS }}
+          ecr_aws_access_key_id: ${{ secrets.FT_ECR_AWS_ACCESS_KEY_ID }}
+          ecr_aws_secret_key: ${{ secrets.FT_ECR_AWS_SECRET_ACCESS_KEY }}
+          start-build-from: ${{ inputs.start-build-from }}
+          git_fetch_submodules: ${{ inputs.git_fetch_submodules }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          latest_tag: ${{ inputs.latest_tag }}
