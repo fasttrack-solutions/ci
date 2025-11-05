@@ -80,7 +80,7 @@ jobs:
     env:
       GO111MODULE: on
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v5
       - name: Git config setup for github
         run: git config --global url."git@github.com:".insteadOf "https://github.com/"
 
@@ -96,7 +96,7 @@ jobs:
         uses: magnetikonline/action-golang-cache@v2
         with:
           go-version: ${{ inputs.go-version }}
-      - uses: actions/setup-go@v4
+      - uses: actions/setup-go@v6
         with:
           go-version: ${{ inputs.go-version }}
           cache: false
@@ -114,7 +114,7 @@ jobs:
           sudo apt-get install --fix-missing -qq -o Acquire::Retries=3 libvips libvips-dev
 
       - name: golangci-lint
-        uses: golangci/golangci-lint-action@v3
+        uses: golangci/golangci-lint-action@v8
         with:
           version: latest
           args: --timeout=10m --out-format=colored-line-number
