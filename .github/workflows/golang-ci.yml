@@ -40,7 +40,7 @@ on:
         description: "dockerhub username"
         required: false
         type: string
-        default: "tazerr"        
+        default: "tazerr"
     secrets:
       FT_SSH_KEY:
         required: true
@@ -59,115 +59,108 @@ jobs:
       dind:
         image: docker:23.0-rc-dind-rootless
         ports:
-          - 2375:2375    
+          - 2375:2375
     steps:
-    - uses: actions/checkout@v3
+      - uses: actions/checkout@v3
 
-    - name: Docker Hub login
-      run: echo "${{ secrets.DOCKERHUB_PULL_TOKEN }}" | docker login -u "${{ inputs.dockerhub_username }}" --password-stdin   
+      - name: Docker Hub login
+        run: echo "${{ secrets.DOCKERHUB_PULL_TOKEN }}" | docker login -u "${{ inputs.dockerhub_username }}" --password-stdin
 
-    - name: Load Docker cache
-      if: always()
-      uses: actions/cache@v3
-      with:
-        path: /tmp/docker-cache
-        key: docker-cache-${{ runner.os }}-${{ github.sha }}
-        restore-keys: |
-          docker-cache-${{ runner.os }}-
+      - name: Load Docker cache
+        if: always()
+        uses: actions/cache@v3
+        with:
+          path: /tmp/docker-cache
+          key: docker-cache-${{ runner.os }}-${{ github.sha }}
+          restore-keys: |
+            docker-cache-${{ runner.os }}-
 
-    - name: Git config setup for bitbucket
-      run: git config --global url."git@bitbucket.org:fasttrackdevteam".insteadOf "https://bitbucket.org/fasttrackdevteam"
+      - name: Git config setup for bitbucket
+        run: git config --global url."git@bitbucket.org:fasttrackdevteam".insteadOf "https://bitbucket.org/fasttrackdevteam"
 
-    - name: Git config setup for github
-      run: git config --global url."git@github.com:".insteadOf https://github.com/
+      - name: Git config setup for github
+        run: git config --global url."git@github.com:".insteadOf https://github.com/
 
-    - name: Setting private repos for golang
-      run: export GOPRIVATE=bitbucket.org/fasttrackdevteam,github.com/fasttrack-solutions
+      - name: Setting private repos for golang
+        run: export GOPRIVATE=bitbucket.org/fasttrackdevteam,github.com/fasttrack-solutions
 
-    - name: Update apt
-      if: ${{ inputs.enable-vips }}
-      env:
-        DEBIAN_FRONTEND: noninteractive
-      run: 
-        sudo apt-get update -qq -o Acquire::Retries=3
+      - name: Update apt
+        if: ${{ inputs.enable-vips }}
+        env:
+          DEBIAN_FRONTEND: noninteractive
+        run:
+          sudo apt-get update -qq -o Acquire::Retries=3
 
-    - name: Install libvips
-      if: ${{ inputs.enable-vips }}
-      env:
-        DEBIAN_FRONTEND: noninteractive
-      run:
-        # we only need the library
-        sudo apt-get install --fix-missing -qq -o Acquire::Retries=3
-          libvips libvips-dev       
+      - name: Install libvips
+        if: ${{ inputs.enable-vips }}
+        env:
+          DEBIAN_FRONTEND: noninteractive
+        run:
+          sudo apt-get install --fix-missing -qq -o Acquire::Retries=3
+          libvips libvips-dev
 
-    - name: Install SSH Key
-      uses: shimataro/ssh-key-action@v2.3.1
-      with:
-        key: ${{ secrets.FT_SSH_KEY }}
-        known_hosts: ${{ secrets.FT_BITBUCKET_KNOWN_HOSTS }}
-    - name: Setup Golang with cache
-      id: golang-with-cache    
-      uses: magnetikonline/action-golang-cache@v5
-      with:
-       go-version: ${{ inputs.go-version }}
+      - name: Install SSH Key
+        uses: shimataro/ssh-key-action@v2.3.1
+        with:
+          key: ${{ secrets.FT_SSH_KEY }}
+          known_hosts: ${{ secrets.FT_BITBUCKET_KNOWN_HOSTS }}
 
-    - name: pip install
-      if: inputs.python_pip_install == true
-      run: |
-        python -m pip install --upgrade pip
-        pip install -r requirements.txt       
+      - name: Setup Golang with cache
+        id: golang-with-cache
+        uses: magnetikonline/action-golang-cache@v5
+        with:
+          go-version: ${{ inputs.go-version }}
 
-    - name: Install pkl
-      if: inputs.pkl_install == true
-      uses: pkl-community/setup-pkl@v0
-      with:
-        pkl-version: 0.25.2
+      - name: pip install
+        if: inputs.python_pip_install == true
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt       
 
-    - name: Download Go modules
-      if: inputs.go-skip-build == false
-      run: go mod download
-      
-    - name: Verify Go modules
-      if: inputs.go-skip-build == false
-      run: go mod verify
-      
-    - name: Build
-      if: inputs.go-skip-build == false
-      run: go build ./...
+      - name: Install pkl
+        if: inputs.pkl_install == true
+        uses: pkl-community/setup-pkl@v0
+        with:
+          pkl-version: 0.25.2
 
-    - name: Test Dir
-      run: mkdir test-reports
+      - name: Download Go modules
+        if: inputs.go-skip-build == false
+        run: go mod download
 
-    - name: Get gotestsum
-      run: go install gotest.tools/gotestsum@v1.12.3
+      - name: Verify Go modules
+        if: inputs.go-skip-build == false
+        run: go mod verify
 
-    - name: Run Test
-      run:  MYSQL_VERSION=${{ inputs.go-test-mysql-version }} gotestsum --junitfile test-reports/report.xml -- -timeout ${{ inputs.go-test-timeout }} -parallel=5 -covermode=atomic -coverprofile=cover.out ./...
+      - name: Build
+        if: inputs.go-skip-build == false
+        run: go build ./...
 
-    - name: Test Report
-      uses: dorny/test-reporter@v1
-      if: success() || failure()    # run this step even if previous step failed
-      with:
-        name: Unit tests            # Name of the check run which will be created
-        path: test-reports/*.xml   # Path to test results
-        reporter: java-junit
-    - name: Upload coverage reports to Codecov
-      continue-on-error: true
-      uses: codecov/codecov-action@v3
-      env:
-        CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
-    - name: Save Golang cache
-      if: always()
-      uses: actions/cache/save@v4
-      with:
-        path: |
-          ${{ steps.golang-with-cache.outputs.build-cache-path }}
-          ${{ steps.golang-with-cache.outputs.module-cache-path }}
-        key: ${{ steps.golang-with-cache.outputs.cache-key }}
+      - name: Test Dir
+        run: mkdir test-reports
 
-    - name: Save Docker cache
-      if: always()
-      uses: actions/cache@v3
-      with:
-        path: /tmp/docker-cache
-        key: docker-cache-${{ runner.os }}-${{ github.sha }}
+      - name: Get gotestsum
+        run: go install gotest.tools/gotestsum@v1.12.3
+
+      - name: Run Test
+        run:  MYSQL_VERSION=${{ inputs.go-test-mysql-version }} gotestsum --junitfile test-reports/report.xml -- -timeout ${{ inputs.go-test-timeout }} -parallel=5 -covermode=atomic -coverprofile=cover.out ./...
+
+      - name: Test Report
+        uses: dorny/test-reporter@v1
+        if: success() || failure()
+        with:
+          name: Unit tests
+          path: test-reports/*.xml
+          reporter: java-junit
+
+      - name: Upload coverage reports to Codecov
+        continue-on-error: true
+        uses: codecov/codecov-action@v3
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+
+      - name: Save Docker cache
+        if: always()
+        uses: actions/cache@v3
+        with:
+          path: /tmp/docker-cache
+          key: docker-cache-${{ runner.os }}-${{ github.sha }}
