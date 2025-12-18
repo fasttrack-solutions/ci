@@ -17,6 +17,13 @@ inputs:
     description: "ecr aws secret key"
     required: true
     default: "" 
+  dockerhub_username:
+    description: "dockerhub username"
+    required: true
+    default: "tazerr"
+  dockerhub_pull_token:
+    description: "dockerhub pull token"
+    required: true    
 outputs:
   image-tag:
     description: "Pushed image tag"

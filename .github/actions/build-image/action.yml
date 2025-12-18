@@ -39,7 +39,14 @@ inputs:
   ecr_aws_secret_key:
     description: "ecr aws secret key"
     required: true
-    default: ""     
+    default: "" 
+  dockerhub_username:
+    description: "dockerhub username"
+    required: true
+    default: "tazerr"
+  dockerhub_pull_token:
+    description: "dockerhub pull token"
+    required: true        
 runs:
   using: composite
   steps:

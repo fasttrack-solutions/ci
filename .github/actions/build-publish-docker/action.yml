@@ -48,6 +48,13 @@ inputs:
     description: "latest tag"
     required: false
     default: "false"
+  dockerhub_username:
+    description: "dockerhub username"
+    required: true
+    default: "tazerr"
+  dockerhub_pull_token:
+    description: "dockerhub pull token"
+    required: true
 runs:
   using: "composite"
   steps:
