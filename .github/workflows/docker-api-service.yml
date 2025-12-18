@@ -25,7 +25,12 @@ on:
       start-build-from:
         required: false
         type: string  
-        default: "0"                            
+        default: "0"
+      dockerhub_username:
+        description: "dockerhub username"
+        required: false
+        type: string
+        default: "tazerr"                                        
     secrets:
       FT_SSH_KEY:
         required: true
@@ -34,7 +39,9 @@ on:
       FT_ECR_AWS_ACCESS_KEY_ID:
         required: true
       FT_ECR_AWS_SECRET_ACCESS_KEY:
-        required: true     
+        required: true
+      DOCKERHUB_PULL_TOKEN:
+        required: true                   
 
 jobs:
   build-service:
@@ -52,6 +59,8 @@ jobs:
         ecr_aws_secret_key: ${{ secrets.FT_ECR_AWS_SECRET_ACCESS_KEY }}
         start-build-from: ${{ inputs.start-build-from }}
         github_token: ${{ secrets.GITHUB_TOKEN }}
+        dockerhub_username: ${{ inputs.dockerhub_username }}
+        dockerhub_pull_token: ${{ secrets.DOCKERHUB_PULL_TOKEN }}
   build-api:
     runs-on: ubuntu-latest
     steps:    
@@ -67,3 +76,5 @@ jobs:
         ecr_aws_secret_key: ${{ secrets.FT_ECR_AWS_SECRET_ACCESS_KEY }}   
         start-build-from: ${{ inputs.start-build-from }}
         github_token: ${{ secrets.GITHUB_TOKEN }}
+        dockerhub_username: ${{ inputs.dockerhub_username }}
+        dockerhub_pull_token: ${{ secrets.DOCKERHUB_PULL_TOKEN }}        

@@ -30,6 +30,11 @@ on:
         required: false
         type: string
         default: "false"
+      dockerhub_username:
+        description: "dockerhub username"
+        required: false
+        type: string
+        default: "tazerr"         
     secrets:
       FT_SSH_KEY:
         required: true
@@ -39,6 +44,9 @@ on:
         required: true
       FT_ECR_AWS_SECRET_ACCESS_KEY:
         required: true
+      DOCKERHUB_PULL_TOKEN:
+        required: true        
+
 
 jobs:
   build-service:
@@ -59,3 +67,5 @@ jobs:
           git_fetch_submodules: ${{ inputs.git_fetch_submodules }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
           latest_tag: ${{ inputs.latest_tag }}
+          dockerhub_username: ${{ inputs.dockerhub_username }}
+          dockerhub_pull_token: ${{ secrets.DOCKERHUB_PULL_TOKEN }}          
