@@ -173,7 +173,7 @@ runs:
         mv /tmp/.buildx-cache-new /tmp/.buildx-cache
 
     - name: Upload Docker Artifact
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v6
       with:
         name: docker-image-${{inputs.image}}${{inputs.tag-prefix}}
         path: ${{ runner.temp }}/image${{inputs.tag-prefix}}.tar
