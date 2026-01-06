@@ -156,7 +156,7 @@ jobs:
         reporter: java-junit
     - name: Upload coverage reports to Codecov
       continue-on-error: true
-      uses: codecov/codecov-action@v3
+      uses: codecov/codecov-action@v5
       env:
         CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
     - name: Save Golang cache
