@@ -85,7 +85,11 @@ runs:
       shell: bash
       run: cp ~/.ssh/id_rsa .  
     - name: Set up Docker Buildx
-      uses: docker/setup-buildx-action@v2
+      uses: docker/setup-buildx-action@v3
+      with:
+        buildkitd-config-inline: |
+          [registry."dhi.io"]
+            mirrors = ["dhi.io"]        
     - name: Set tag
       shell: bash
       env:
