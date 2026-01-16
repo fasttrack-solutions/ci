@@ -57,15 +57,10 @@ jobs:
   build-service:
     strategy:
       matrix:
-        include:
-          - platform: linux/amd64
-            runner: ubuntu-latest
-          - platform: linux/arm64
-            runner: ubuntu-arm64-latest
+        include: ${{ fromJSON(inputs.multi_arch && '[{"platform":"linux/amd64","runner":"ubuntu-latest"},{"platform":"linux/arm64","runner":"ubuntu-arm64-latest"}]' || '[{"platform":"linux/amd64","runner":"ubuntu-latest"}]') }}
     runs-on: ${{ matrix.runner }}
     steps:
       - name: Build & Publish
-        if: matrix.platform == 'linux/amd64' || inputs.multi_arch == true
         id: build
         uses: fasttrack-solutions/ci/.github/actions/build-publish-docker@feat/multi-arch-docker-builds
         with:
