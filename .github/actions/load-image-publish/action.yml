@@ -23,7 +23,15 @@ inputs:
     default: "tazerr"
   dockerhub_pull_token:
     description: "dockerhub pull token"
-    required: true    
+    required: true
+  platforms:
+    description: "Platforms to publish (comma-separated, e.g., linux/amd64,linux/arm64)"
+    required: false
+    default: "linux/amd64,linux/arm64"
+  multi_arch:
+    description: "Whether to include arm64 (default: false, amd64 only)"
+    required: false
+    default: "false"
 outputs:
   image-tag:
     description: "Pushed image tag"
@@ -49,19 +57,20 @@ runs:
 
     - name: DHI registry login
       shell: bash
-      run: echo "${{ inputs.dockerhub_pull_token }}" | docker login dhi.io -u "${{ inputs.dockerhub_username }}" --password-stdin               
+      run: echo "${{ inputs.dockerhub_pull_token }}" | docker login dhi.io -u "${{ inputs.dockerhub_username }}" --password-stdin
 
-    - name: Download artifact
+    - name: Download amd64 artifact
       uses: actions/download-artifact@v4
       with:
-        name: docker-image-${{inputs.image}}${{inputs.tag-prefix}}
-        path: ${{ runner.temp }}
+        name: docker-image-${{inputs.image}}${{inputs.tag-prefix}}-linux-amd64
+        path: ${{ runner.temp }}/amd64
 
-    - name: Load image
-      shell: bash    
-      run: |
-        docker load --input ${{ runner.temp }}/image${{inputs.tag-prefix}}.tar
-        docker image ls -a
+    - name: Download arm64 artifact
+      if: inputs.multi_arch == 'true'
+      uses: actions/download-artifact@v4
+      with:
+        name: docker-image-${{inputs.image}}${{inputs.tag-prefix}}-linux-arm64
+        path: ${{ runner.temp }}/arm64
 
     - name: Set tag
       shell: bash
@@ -76,15 +85,19 @@ runs:
       id: findPr
       with:
         state: open
+
     - name: Debug variables
       shell: bash
       run: |
         echo "github.ref: ${{ github.ref }}"
         echo "inputs.tag-prefix: ${{ inputs.tag-prefix }}"
         echo "env.BUILD_NUMBER: ${{ env.BUILD_NUMBER }}"
-        echo "steps.findPr.outputs.pr: ${{ steps.findPr.outputs.pr }}"        
+        echo "steps.findPr.outputs.pr: ${{ steps.findPr.outputs.pr }}"
+        echo "Artifacts downloaded:"
+        ls -la ${{ runner.temp }}/amd64/ || echo "No amd64 artifacts"
+        ls -la ${{ runner.temp }}/arm64/ || echo "No arm64 artifacts"
 
-    - name: Determine tag, build and push Docker image
+    - name: Load, tag and push images
       shell: bash
       run: |
         # Determine BUILD_TAG based on git reference
@@ -99,9 +112,57 @@ runs:
         fi
 
         echo "BUILD TAG: ${BUILD_TAG}"
+        echo "BUILD_TAG=${BUILD_TAG}" >> $GITHUB_ENV
 
-        # Define the IMAGE variable explicitly
-        IMAGE="${{ steps.login-ecr.outputs.registry }}/${{inputs.image}}:$BUILD_TAG"
+        REGISTRY="${{ steps.login-ecr.outputs.registry }}"
+        IMAGE_NAME="${{inputs.image}}"
+        FULL_IMAGE="${REGISTRY}/${IMAGE_NAME}:${BUILD_TAG}"
+        MULTI_ARCH="${{ inputs.multi_arch }}"
 
-        # Push the Docker image
-        docker push "$IMAGE"
+        # Load and push amd64 image
+        echo "Loading amd64 image..."
+        docker load --input ${{ runner.temp }}/amd64/image${{inputs.tag-prefix}}-linux-amd64.tar
+
+        # Get the loaded image name and retag for amd64
+        LOADED_IMAGE=$(docker images --format "{{.Repository}}:{{.Tag}}" | head -1)
+        echo "Loaded image: ${LOADED_IMAGE}"
+
+        AMD64_TAG="${FULL_IMAGE}-amd64"
+        docker tag "${LOADED_IMAGE}" "${AMD64_TAG}"
+        echo "Pushing ${AMD64_TAG}..."
+        docker push "${AMD64_TAG}"
+
+        # Load and push arm64 image if multi_arch is enabled
+        if [[ "$MULTI_ARCH" == "true" ]]; then
+          echo "Loading arm64 image..."
+          docker load --input ${{ runner.temp }}/arm64/image${{inputs.tag-prefix}}-linux-arm64.tar
+
+          # Get the loaded image name and retag for arm64
+          LOADED_IMAGE=$(docker images --format "{{.Repository}}:{{.Tag}}" | grep -v "${AMD64_TAG}" | head -1)
+          echo "Loaded image: ${LOADED_IMAGE}"
+
+          ARM64_TAG="${FULL_IMAGE}-arm64"
+          docker tag "${LOADED_IMAGE}" "${ARM64_TAG}"
+          echo "Pushing ${ARM64_TAG}..."
+          docker push "${ARM64_TAG}"
+        fi
+
+        # Create and push manifest
+        echo "Creating manifest..."
+        if [[ "$MULTI_ARCH" == "true" ]]; then
+          docker manifest create "${FULL_IMAGE}" \
+            "${AMD64_TAG}" \
+            "${ARM64_TAG}"
+          docker manifest annotate "${FULL_IMAGE}" "${AMD64_TAG}" --os linux --arch amd64
+          docker manifest annotate "${FULL_IMAGE}" "${ARM64_TAG}" --os linux --arch arm64
+        else
+          docker manifest create "${FULL_IMAGE}" \
+            "${AMD64_TAG}"
+          docker manifest annotate "${FULL_IMAGE}" "${AMD64_TAG}" --os linux --arch amd64
+        fi
+
+        echo "Pushing manifest..."
+        docker manifest push "${FULL_IMAGE}"
+
+        echo "Successfully pushed image: ${FULL_IMAGE}"
+        docker manifest inspect "${FULL_IMAGE}"
