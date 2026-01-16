@@ -50,6 +50,7 @@ on:
 
 jobs:
   build-service:
+    name: ${{ matrix.platform == 'linux/arm64' && 'build-service-arm64' || 'build-service' }}
     strategy:
       matrix:
         include: ${{ fromJSON(inputs.multi_arch && '[{"platform":"linux/amd64","runner":"ubuntu-latest"},{"platform":"linux/arm64","runner":"ubuntu-arm64-latest"}]' || '[{"platform":"linux/amd64","runner":"ubuntu-latest"}]') }}
@@ -72,6 +73,7 @@ jobs:
         platform: ${{ matrix.platform }}
 
   build-api:
+    name: ${{ matrix.platform == 'linux/arm64' && 'build-api-arm64' || 'build-api' }}
     strategy:
       matrix:
         include: ${{ fromJSON(inputs.multi_arch && '[{"platform":"linux/amd64","runner":"ubuntu-latest"},{"platform":"linux/arm64","runner":"ubuntu-arm64-latest"}]' || '[{"platform":"linux/amd64","runner":"ubuntu-latest"}]') }}
