@@ -30,7 +30,12 @@ on:
         description: "dockerhub username"
         required: false
         type: string
-        default: "tazerr"          
+        default: "tazerr"
+      multi_arch:
+        description: "Build for both amd64 and arm64 (default: false, amd64 only)"
+        required: false
+        type: boolean
+        default: false
     secrets:
       FT_SSH_KEY:
         required: true
@@ -51,9 +56,10 @@ jobs:
       uses: fasttrack-solutions/ci/.github/actions/load-image-publish@feat/multi-arch-docker-builds
       with:
         image: ${{ inputs.image }}
-        tag-prefix: ${{ inputs.tag-prefix }}  
+        tag-prefix: ${{ inputs.tag-prefix }}
         ecr_aws_access_key_id: ${{ secrets.FT_ECR_AWS_ACCESS_KEY_ID }}
         ecr_aws_secret_key: ${{ secrets.FT_ECR_AWS_SECRET_ACCESS_KEY }}
         github_token: ${{ secrets.GITHUB_TOKEN }}
         dockerhub_username: ${{ inputs.dockerhub_username }}
-        dockerhub_pull_token: ${{ secrets.DOCKERHUB_PULL_TOKEN }}        
+        dockerhub_pull_token: ${{ secrets.DOCKERHUB_PULL_TOKEN }}
+        multi_arch: ${{ inputs.multi_arch }}        
