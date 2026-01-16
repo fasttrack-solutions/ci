@@ -48,7 +48,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - name: Build & Publish
-      uses: fasttrack-solutions/ci/.github/actions/load-image-publish@main
+      uses: fasttrack-solutions/ci/.github/actions/load-image-publish@feat/multi-arch-docker-builds
       with:
         image: ${{ inputs.image }}
         tag-prefix: ${{ inputs.tag-prefix }}  
