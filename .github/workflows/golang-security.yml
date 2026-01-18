@@ -20,7 +20,7 @@ on:
       FT_BITBUCKET_KNOWN_HOSTS:
         required: true
 jobs:
-  security:
+  govulncheck:
     runs-on: ubuntu-latest
     env:
       GO111MODULE: on
@@ -55,15 +55,11 @@ jobs:
         with:
           key: ${{ secrets.FT_SSH_KEY }}
           known_hosts: ${{ secrets.FT_BITBUCKET_KNOWN_HOSTS }}
+
       - name: Setup Golang with cache
         uses: magnetikonline/action-golang-cache@v5
         with:
           go-version: ${{ inputs.go-version }}
-      - name: Cache Go security tools
-        uses: actions/cache@v4
-        with:
-          path: ~/go/bin
-          key: go-security-tools-${{ runner.os }}-${{ hashFiles('.github/workflows/golang-security.yml') }}
 
       - id: govulncheck
         uses: golang/govulncheck-action@v1
@@ -71,11 +67,59 @@ jobs:
            go-version-input: ${{ inputs.go-version }}
            go-package: ./...
 
+  gosec:
+    runs-on: ubuntu-latest
+    env:
+      GO111MODULE: on
+    steps:
+      - name: Checkout Source
+        uses: actions/checkout@v5
+
+      - name: Git config setup for bitbucket
+        run: git config --global url."git@bitbucket.org:fasttrackdevteam".insteadOf "https://bitbucket.org/fasttrackdevteam"
+
+      - name: Git config setup for github
+        run: git config --global url."git@github.com:".insteadOf "https://github.com/"
+
+      - name: Update apt
+        if: ${{ inputs.enable-vips }}
+        env:
+          DEBIAN_FRONTEND: noninteractive
+        run: sudo apt-get update -qq -o Acquire::Retries=3
+
+      - name: Install libvips
+        if: ${{ inputs.enable-vips }}
+        env:
+          DEBIAN_FRONTEND: noninteractive
+        run: |
+          sudo apt-get install --fix-missing -qq -o Acquire::Retries=3 libvips libvips-dev
+
+      - name: Setting private repos for golang
+        run: export GOPRIVATE=bitbucket.org/fasttrackdevteam,github.com/fasttrack-solutions
+
+      - name: Install SSH Key
+        uses: shimataro/ssh-key-action@v2.3.1
+        with:
+          key: ${{ secrets.FT_SSH_KEY }}
+          known_hosts: ${{ secrets.FT_BITBUCKET_KNOWN_HOSTS }}
+
+      - name: Setup Golang with cache
+        uses: magnetikonline/action-golang-cache@v5
+        with:
+          go-version: ${{ inputs.go-version }}
+
+      - name: Cache Go security tools
+        uses: actions/cache@v4
+        with:
+          path: ~/go/bin
+          key: go-security-tools-${{ runner.os }}-gosec
+
       - name: Install go sec
         run: |
           if [ ! -f ~/go/bin/gosec ]; then
             go install github.com/securego/gosec/v2/cmd/gosec@latest
           fi
+
       - name: Run gosec
         run: |
           if [ -n "${{ inputs.go-sec-ignore-folders }}" ]; then
