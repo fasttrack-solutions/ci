@@ -67,12 +67,12 @@ runs:
     - name: Login to Amazon ECR
       uses: aws-actions/amazon-ecr-login@v2
       id: login-ecr  
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
       if: inputs.git_fetch_submodules == 'true'
       with:
         submodules: recursive
         ssh-key: ${{ inputs.ssh_key }}    
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
       if: inputs.git_fetch_submodules != 'true'      
     - name: Install SSH Key
       # You may pin to the exact commit or the version.
@@ -106,15 +106,17 @@ runs:
         state: open         
     - name: Cache Docker layers
       continue-on-error: true
-      uses: actions/cache@v3
+      uses: actions/cache@v4
       with:
          path: /tmp/.buildx-cache
-         key: ${{ runner.os }}-buildx-${{ github.sha }}
+         key: ${{ runner.os }}-buildx-${{ inputs.image }}-${{ github.ref_name }}-${{ github.sha }}
          restore-keys: |
-           ${{ runner.os }}-buildx-      
+           ${{ runner.os }}-buildx-${{ inputs.image }}-${{ github.ref_name }}-
+           ${{ runner.os }}-buildx-${{ inputs.image }}-main-
+           ${{ runner.os }}-buildx-${{ inputs.image }}-      
     - name: Build and push
       if: github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main'
-      uses: docker/build-push-action@v3
+      uses: docker/build-push-action@v6
       with:
           context: .
           platforms: linux/amd64
@@ -127,7 +129,7 @@ runs:
           cache-to: type=local,dest=/tmp/.buildx-cache-new
     - name: Build and push PR
       if: (github.ref != 'refs/heads/master' || github.ref != 'refs/heads/main') && steps.findPr.outputs.number > 0
-      uses: docker/build-push-action@v3
+      uses: docker/build-push-action@v6
       with:
           context: .
           platforms: linux/amd64
@@ -149,7 +151,7 @@ runs:
           Your build has the image tag: `${{inputs.tag-prefix}}oneclickpr-${{ steps.findPr.outputs.pr }}-${{ env.BUILD_NUMBER }}` :sparkles: 
     - name: Build and push Release
       if: contains(github.ref, 'release')
-      uses: docker/build-push-action@v3
+      uses: docker/build-push-action@v6
       with:
           context: .
           platforms: linux/amd64
