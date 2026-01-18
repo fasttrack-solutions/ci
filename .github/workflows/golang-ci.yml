@@ -61,7 +61,7 @@ jobs:
         ports:
           - 2375:2375    
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
 
     - name: Docker Hub login
       run: echo "${{ secrets.DOCKERHUB_PULL_TOKEN }}" | docker login -u "${{ inputs.dockerhub_username }}" --password-stdin
