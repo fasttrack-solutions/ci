@@ -49,17 +49,17 @@ on:
         required: true              
 
 jobs:
-  build-service:
+  create-manifest:
     runs-on: ubuntu-latest
     steps:
-    - name: Build & Publish
-      uses: fasttrack-solutions/ci/.github/actions/load-image-publish@main
+    - name: Create multi-arch manifest
+      uses: fasttrack-solutions/ci/.github/actions/create-manifest@main
       with:
         image: ${{ inputs.image }}
         tag-prefix: ${{ inputs.tag-prefix }}
+        start-build-from: ${{ inputs.start-build-from }}
         ecr_aws_access_key_id: ${{ secrets.FT_ECR_AWS_ACCESS_KEY_ID }}
         ecr_aws_secret_key: ${{ secrets.FT_ECR_AWS_SECRET_ACCESS_KEY }}
-        github_token: ${{ secrets.GITHUB_TOKEN }}
         dockerhub_username: ${{ inputs.dockerhub_username }}
         dockerhub_pull_token: ${{ secrets.DOCKERHUB_PULL_TOKEN }}
         multi_arch: ${{ inputs.multi_arch }}        
