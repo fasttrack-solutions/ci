@@ -61,7 +61,7 @@ jobs:
         ports:
           - 2375:2375    
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v5
 
     - name: Docker Hub login
       run: echo "${{ secrets.DOCKERHUB_PULL_TOKEN }}" | docker login -u "${{ inputs.dockerhub_username }}" --password-stdin
@@ -71,11 +71,13 @@ jobs:
 
     - name: Load Docker cache
       if: always()
-      uses: actions/cache@v3
+      uses: actions/cache@v4
       with:
         path: /tmp/docker-cache
-        key: docker-cache-${{ runner.os }}-${{ github.sha }}
+        key: docker-cache-${{ runner.os }}-${{ github.ref_name }}-${{ github.sha }}
         restore-keys: |
+          docker-cache-${{ runner.os }}-${{ github.ref_name }}-
+          docker-cache-${{ runner.os }}-main-
           docker-cache-${{ runner.os }}-
 
     - name: Git config setup for bitbucket
@@ -114,6 +116,13 @@ jobs:
       with:
        go-version: ${{ inputs.go-version }}
 
+    - name: Setup Python with cache
+      if: inputs.python_pip_install == true
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.x'
+        cache: 'pip'
+
     - name: pip install
       if: inputs.python_pip_install == true
       run: |
@@ -141,8 +150,17 @@ jobs:
     - name: Test Dir
       run: mkdir test-reports
 
+    - name: Cache Go tools
+      uses: actions/cache@v4
+      with:
+        path: ~/go/bin
+        key: go-tools-${{ runner.os }}-gotestsum-v1.12.3
+
     - name: Get gotestsum
-      run: go install gotest.tools/gotestsum@v1.12.3
+      run: |
+        if [ ! -f ~/go/bin/gotestsum ]; then
+          go install gotest.tools/gotestsum@v1.12.3
+        fi
 
     - name: Run Test
       run:  MYSQL_VERSION=${{ inputs.go-test-mysql-version }} gotestsum --junitfile test-reports/report.xml -- -timeout ${{ inputs.go-test-timeout }} -parallel=5 -covermode=atomic -coverprofile=cover.out ./...
@@ -156,7 +174,7 @@ jobs:
         reporter: java-junit
     - name: Upload coverage reports to Codecov
       continue-on-error: true
-      uses: codecov/codecov-action@v3
+      uses: codecov/codecov-action@v5
       env:
         CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
     - name: Save Golang cache
@@ -170,7 +188,7 @@ jobs:
 
     - name: Save Docker cache
       if: always()
-      uses: actions/cache@v3
+      uses: actions/cache/save@v4
       with:
         path: /tmp/docker-cache
-        key: docker-cache-${{ runner.os }}-${{ github.sha }}
+        key: docker-cache-${{ runner.os }}-${{ github.ref_name }}-${{ github.sha }}
