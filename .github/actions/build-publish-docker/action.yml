@@ -148,6 +148,7 @@ runs:
         context: .
         platforms: ${{ inputs.platform }}
         push: true
+        provenance: false
         tags: ${{ steps.login-ecr.outputs.registry }}/${{inputs.image}}:${{inputs.tag-prefix}}oneclick-${{ env.BUILD_NUMBER }}-${{ steps.platform.outputs.arch }}
         file: ${{inputs.dockerfile}}
         build-args: ${{ inputs.build-args }}
@@ -160,6 +161,7 @@ runs:
         context: .
         platforms: ${{ inputs.platform }}
         push: true
+        provenance: false
         tags: ${{ steps.login-ecr.outputs.registry }}/${{inputs.image}}:${{inputs.tag-prefix}}latest-${{ steps.platform.outputs.arch }}
         file: ${{inputs.dockerfile}}
         build-args: ${{ inputs.build-args }}
@@ -172,6 +174,7 @@ runs:
         context: .
         platforms: ${{ inputs.platform }}
         push: true
+        provenance: false
         tags: ${{ steps.login-ecr.outputs.registry }}/${{inputs.image}}:${{inputs.tag-prefix}}oneclickpr-${{ steps.findPr.outputs.pr }}-${{ env.BUILD_NUMBER }}-${{ steps.platform.outputs.arch }}
         file: ${{inputs.dockerfile}}
         build-args: ${{ inputs.build-args }}
@@ -193,6 +196,7 @@ runs:
         context: .
         platforms: ${{ inputs.platform }}
         push: true
+        provenance: false
         tags: ${{ steps.login-ecr.outputs.registry }}/${{inputs.image}}:${{inputs.tag-prefix}}oneclickrelease-${{ env.BUILD_NUMBER }}-${{ steps.platform.outputs.arch }}
         file: ${{inputs.dockerfile}}
         build-args: ${{ inputs.build-args }}
