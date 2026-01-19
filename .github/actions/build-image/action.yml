@@ -126,8 +126,8 @@ runs:
           tags: ${{ steps.login-ecr.outputs.registry }}/${{inputs.image}}:${{inputs.tag-prefix}}oneclick-${{ env.BUILD_NUMBER }}
           file: ${{inputs.dockerfile}}
           build-args: ${{ inputs.build-args }}
-          cache-from: type=gha,scope=${{ inputs.image }}
-          cache-to: type=gha,scope=${{ inputs.image }},mode=max
+          cache-from: type=gha,scope=${{ inputs.image }}-${{ steps.platform.outputs.suffix }}
+          cache-to: type=gha,scope=${{ inputs.image }}-${{ steps.platform.outputs.suffix }},mode=max
     - name: Build and push PR
       if: (github.ref != 'refs/heads/master' || github.ref != 'refs/heads/main') && steps.findPr.outputs.number > 0
       uses: docker/build-push-action@v6
@@ -139,8 +139,8 @@ runs:
           tags: ${{ steps.login-ecr.outputs.registry }}/${{inputs.image}}:${{inputs.tag-prefix}}oneclickpr-${{ steps.findPr.outputs.pr }}-${{ env.BUILD_NUMBER }}
           file: ${{inputs.dockerfile}}
           build-args: ${{ inputs.build-args }}
-          cache-from: type=gha,scope=${{ inputs.image }}
-          cache-to: type=gha,scope=${{ inputs.image }},mode=max
+          cache-from: type=gha,scope=${{ inputs.image }}-${{ steps.platform.outputs.suffix }}
+          cache-to: type=gha,scope=${{ inputs.image }}-${{ steps.platform.outputs.suffix }},mode=max
     - name: Comment oneclick PR tag
       if: (github.ref != 'refs/heads/master' || github.ref != 'refs/heads/main') && steps.findPr.outputs.number > 0
       uses: marocchino/sticky-pull-request-comment@v2
@@ -161,8 +161,8 @@ runs:
           tags: ${{ steps.login-ecr.outputs.registry }}/${{inputs.image}}:${{inputs.tag-prefix}}oneclickrelease-${{ env.BUILD_NUMBER }}
           file: ${{inputs.dockerfile}}
           build-args: ${{ inputs.build-args }}
-          cache-from: type=gha,scope=${{ inputs.image }}
-          cache-to: type=gha,scope=${{ inputs.image }},mode=max
+          cache-from: type=gha,scope=${{ inputs.image }}-${{ steps.platform.outputs.suffix }}
+          cache-to: type=gha,scope=${{ inputs.image }}-${{ steps.platform.outputs.suffix }},mode=max
 
     - name: Upload Docker Artifact
       uses: actions/upload-artifact@v4
