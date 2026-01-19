@@ -1,0 +1,160 @@
+name: "Create Multi-Arch Manifest"
+description: "Create and push a multi-arch manifest from platform-specific images"
+inputs:
+  image:
+    description: "Image name (without registry)"
+    required: true
+  start-build-from:
+    description: "Build number offset"
+    required: false
+    default: "0"
+  ecr_aws_access_key_id:
+    description: "ECR AWS access key ID"
+    required: true
+  ecr_aws_secret_key:
+    description: "ECR AWS secret key"
+    required: true
+  dockerhub_username:
+    description: "Docker Hub username"
+    required: true
+    default: "tazerr"
+  dockerhub_pull_token:
+    description: "Docker Hub pull token"
+    required: true
+  latest_tag:
+    description: "Also create latest manifest"
+    required: false
+    default: "false"
+  tag-prefix:
+    description: "Tag prefix"
+    required: false
+    default: ""
+  github_token:
+    description: "GitHub token for PR detection"
+    required: false
+    default: ""
+
+runs:
+  using: "composite"
+  steps:
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v1
+      with:
+        aws-access-key-id: ${{ inputs.ecr_aws_access_key_id }}
+        aws-secret-access-key: ${{ inputs.ecr_aws_secret_key }}
+        aws-region: eu-west-1
+
+    - name: Login to Amazon ECR
+      id: login-ecr
+      uses: aws-actions/amazon-ecr-login@v1
+
+    - name: Docker Hub login
+      shell: bash
+      run: echo "${{ inputs.dockerhub_pull_token }}" | docker login -u "${{ inputs.dockerhub_username }}" --password-stdin
+
+    - name: DHI registry login
+      shell: bash
+      run: echo "${{ inputs.dockerhub_pull_token }}" | docker login dhi.io -u "${{ inputs.dockerhub_username }}" --password-stdin
+
+    - name: Set build number
+      shell: bash
+      env:
+        RUN_NUMBER: ${{ github.run_number }}
+        START_FROM: ${{ inputs.start-build-from }}
+      run: |
+        BUILD_NUMBER=$(($RUN_NUMBER + $START_FROM))
+        echo "BUILD_NUMBER=$BUILD_NUMBER" >> $GITHUB_ENV
+
+    - uses: jwalton/gh-find-current-pr@v1
+      id: findPr
+      with:
+        state: open
+
+    - name: Create and push manifest
+      shell: bash
+      run: |
+        REGISTRY="${{ steps.login-ecr.outputs.registry }}"
+        IMAGE="${{ inputs.image }}"
+        PREFIX="${{ inputs.tag-prefix }}"
+
+        # Determine the base tag (same logic as build action)
+        if [[ "${{ github.ref }}" == "refs/heads/master" || "${{ github.ref }}" == "refs/heads/main" ]]; then
+          TAG="${PREFIX}oneclick-${{ env.BUILD_NUMBER }}"
+        elif [[ "${{ github.ref }}" == *"release"* ]]; then
+          TAG="${PREFIX}oneclickrelease-${{ env.BUILD_NUMBER }}"
+        elif [[ -n "${{ steps.findPr.outputs.pr }}" ]]; then
+          TAG="${PREFIX}oneclickpr-${{ steps.findPr.outputs.pr }}-${{ env.BUILD_NUMBER }}"
+        else
+          TAG="${PREFIX}oneclick-${{ env.BUILD_NUMBER }}"
+        fi
+
+        AMD64_IMAGE="${REGISTRY}/${IMAGE}:${TAG}-amd64"
+        ARM64_IMAGE="${REGISTRY}/${IMAGE}:${TAG}-arm64"
+        MANIFEST_IMAGE="${REGISTRY}/${IMAGE}:${TAG}"
+
+        echo "Creating manifest for ${MANIFEST_IMAGE}"
+        echo "  - AMD64: ${AMD64_IMAGE}"
+
+        # Check if ARM64 image exists
+        ARM64_EXISTS=false
+        if docker manifest inspect "${ARM64_IMAGE}" > /dev/null 2>&1; then
+          ARM64_EXISTS=true
+          echo "  - ARM64: ${ARM64_IMAGE}"
+        else
+          echo "  - ARM64: not available (single-arch build)"
+        fi
+
+        # Create the manifest with available images
+        if [[ "$ARM64_EXISTS" == "true" ]]; then
+          docker manifest create "${MANIFEST_IMAGE}" \
+            "${AMD64_IMAGE}" \
+            "${ARM64_IMAGE}"
+          docker manifest annotate "${MANIFEST_IMAGE}" "${AMD64_IMAGE}" --os linux --arch amd64
+          docker manifest annotate "${MANIFEST_IMAGE}" "${ARM64_IMAGE}" --os linux --arch arm64
+        else
+          docker manifest create "${MANIFEST_IMAGE}" \
+            "${AMD64_IMAGE}"
+          docker manifest annotate "${MANIFEST_IMAGE}" "${AMD64_IMAGE}" --os linux --arch amd64
+        fi
+
+        # Push the manifest
+        docker manifest push "${MANIFEST_IMAGE}"
+
+        echo "Successfully pushed manifest: ${MANIFEST_IMAGE}"
+        docker manifest inspect "${MANIFEST_IMAGE}"
+
+    - name: Create and push latest manifest
+      if: inputs.latest_tag == 'true'
+      shell: bash
+      run: |
+        REGISTRY="${{ steps.login-ecr.outputs.registry }}"
+        IMAGE="${{ inputs.image }}"
+        PREFIX="${{ inputs.tag-prefix }}"
+
+        AMD64_IMAGE="${REGISTRY}/${IMAGE}:${PREFIX}latest-amd64"
+        ARM64_IMAGE="${REGISTRY}/${IMAGE}:${PREFIX}latest-arm64"
+        MANIFEST_IMAGE="${REGISTRY}/${IMAGE}:${PREFIX}latest"
+
+        echo "Creating latest manifest for ${MANIFEST_IMAGE}"
+
+        # Check if ARM64 image exists
+        ARM64_EXISTS=false
+        if docker manifest inspect "${ARM64_IMAGE}" > /dev/null 2>&1; then
+          ARM64_EXISTS=true
+        fi
+
+        if [[ "$ARM64_EXISTS" == "true" ]]; then
+          docker manifest create "${MANIFEST_IMAGE}" \
+            "${AMD64_IMAGE}" \
+            "${ARM64_IMAGE}"
+          docker manifest annotate "${MANIFEST_IMAGE}" "${AMD64_IMAGE}" --os linux --arch amd64
+          docker manifest annotate "${MANIFEST_IMAGE}" "${ARM64_IMAGE}" --os linux --arch arm64
+        else
+          docker manifest create "${MANIFEST_IMAGE}" \
+            "${AMD64_IMAGE}"
+          docker manifest annotate "${MANIFEST_IMAGE}" "${AMD64_IMAGE}" --os linux --arch amd64
+        fi
+
+        docker manifest push "${MANIFEST_IMAGE}"
+
+        echo "Successfully pushed latest manifest: ${MANIFEST_IMAGE}"
