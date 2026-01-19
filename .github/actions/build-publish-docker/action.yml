@@ -143,7 +143,7 @@ runs:
           ${{ runner.os }}-${{ steps.platform.outputs.arch }}-buildx-
     - name: Build and push
       if: github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main'
-      uses: docker/build-push-action@v3
+      uses: docker/build-push-action@v6
       with:
         context: .
         platforms: ${{ inputs.platform }}
@@ -155,7 +155,7 @@ runs:
         cache-to: type=local,dest=/tmp/.buildx-cache-new
     - name: Build and push latest
       if: (github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main') && inputs.latest_tag == 'true'
-      uses: docker/build-push-action@v3
+      uses: docker/build-push-action@v6
       with:
         context: .
         platforms: ${{ inputs.platform }}
@@ -167,7 +167,7 @@ runs:
         cache-to: type=local,dest=/tmp/.buildx-cache-new
     - name: Build and push PR
       if: (github.ref != 'refs/heads/master' || github.ref != 'refs/heads/main') && steps.findPr.outputs.number > 0
-      uses: docker/build-push-action@v3
+      uses: docker/build-push-action@v6
       with:
         context: .
         platforms: ${{ inputs.platform }}
@@ -188,7 +188,7 @@ runs:
           Your build has the image tag: `${{inputs.tag-prefix}}oneclickpr-${{ steps.findPr.outputs.pr }}-${{ env.BUILD_NUMBER }}` :sparkles:
     - name: Build and push Release
       if: contains(github.ref, 'release')
-      uses: docker/build-push-action@v3
+      uses: docker/build-push-action@v6
       with:
         context: .
         platforms: ${{ inputs.platform }}
