@@ -55,16 +55,6 @@ jobs:
 
   build:
     runs-on: ${{ inputs.runner }}
-    services:
-      dind:
-        image: docker:23.0-rc-dind-rootless
-        ports:
-          - 2375:2375
-        env:
-          DOCKER_TLS_CERTDIR: ""
-        credentials:
-          username: ${{ inputs.dockerhub_username }}
-          password: ${{ secrets.DOCKERHUB_PULL_TOKEN }}    
     steps:
     - uses: actions/checkout@v5
 
@@ -73,9 +63,6 @@ jobs:
 
     - name: DHI registry login
       run: echo "${{ secrets.DOCKERHUB_PULL_TOKEN }}" | docker login dhi.io -u "${{ inputs.dockerhub_username }}" --password-stdin
-
-    - name: Docker Hub login (dind)
-      run: echo "${{ secrets.DOCKERHUB_PULL_TOKEN }}" | docker -H tcp://localhost:2375 login -u "${{ inputs.dockerhub_username }}" --password-stdin         
 
     - name: Load Docker cache
       if: always()
@@ -171,9 +158,6 @@ jobs:
         fi
 
     - name: Run Test
-      env:
-        DOCKER_HOST: tcp://localhost:2375
-        TESTCONTAINERS_RYUK_DISABLED: "true"
       run: MYSQL_VERSION=${{ inputs.go-test-mysql-version }} gotestsum --junitfile test-reports/report.xml -- -timeout ${{ inputs.go-test-timeout }} -parallel=5 -covermode=atomic -coverprofile=cover.out ./...
 
     - name: Test Report
