@@ -33,6 +33,10 @@ inputs:
     description: "GitHub token for PR detection"
     required: false
     default: ""
+  multi_arch:
+    description: "Whether to include arm64 (default: false, amd64 only)"
+    required: false
+    default: "false"
 
 runs:
   using: "composite"
@@ -95,17 +99,16 @@ runs:
         echo "Creating manifest for ${MANIFEST_IMAGE}"
         echo "  - AMD64: ${AMD64_IMAGE}"
 
-        # Check if ARM64 image exists
-        ARM64_EXISTS=false
-        if docker manifest inspect "${ARM64_IMAGE}" > /dev/null 2>&1; then
-          ARM64_EXISTS=true
+        MULTI_ARCH="${{ inputs.multi_arch }}"
+
+        if [[ "$MULTI_ARCH" == "true" ]]; then
           echo "  - ARM64: ${ARM64_IMAGE}"
         else
-          echo "  - ARM64: not available (single-arch build)"
+          echo "  - ARM64: not included (single-arch build)"
         fi
 
         # Create the manifest with available images
-        if [[ "$ARM64_EXISTS" == "true" ]]; then
+        if [[ "$MULTI_ARCH" == "true" ]]; then
           docker manifest create "${MANIFEST_IMAGE}" \
             "${AMD64_IMAGE}" \
             "${ARM64_IMAGE}"
@@ -137,13 +140,9 @@ runs:
 
         echo "Creating latest manifest for ${MANIFEST_IMAGE}"
 
-        # Check if ARM64 image exists
-        ARM64_EXISTS=false
-        if docker manifest inspect "${ARM64_IMAGE}" > /dev/null 2>&1; then
-          ARM64_EXISTS=true
-        fi
+        MULTI_ARCH="${{ inputs.multi_arch }}"
 
-        if [[ "$ARM64_EXISTS" == "true" ]]; then
+        if [[ "$MULTI_ARCH" == "true" ]]; then
           docker manifest create "${MANIFEST_IMAGE}" \
             "${AMD64_IMAGE}" \
             "${ARM64_IMAGE}"

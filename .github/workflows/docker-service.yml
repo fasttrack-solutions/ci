@@ -95,4 +95,5 @@ jobs:
           dockerhub_username: ${{ inputs.dockerhub_username }}
           dockerhub_pull_token: ${{ secrets.DOCKERHUB_PULL_TOKEN }}
           latest_tag: ${{ inputs.latest_tag }}
-          tag-prefix: ${{ inputs.tag-prefix }}          
+          tag-prefix: ${{ inputs.tag-prefix }}
+          multi_arch: ${{ inputs.multi_arch }}          
