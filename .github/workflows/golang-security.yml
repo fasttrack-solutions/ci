@@ -169,3 +169,22 @@ jobs:
         with:
           version: latest
           args: --timeout=10m
+
+  security:
+    name: security
+    runs-on: ubuntu-latest
+    needs: [govulncheck, gosec, golangci]
+    if: always()
+    steps:
+      - name: Check all security jobs passed
+        run: |
+          if [[ "${{ needs.govulncheck.result }}" != "success" ]] || \
+             [[ "${{ needs.gosec.result }}" != "success" ]] || \
+             [[ "${{ needs.golangci.result }}" != "success" ]]; then
+            echo "One or more security checks failed:"
+            echo "  govulncheck: ${{ needs.govulncheck.result }}"
+            echo "  gosec: ${{ needs.gosec.result }}"
+            echo "  golangci: ${{ needs.golangci.result }}"
+            exit 1
+          fi
+          echo "All security checks passed!"
