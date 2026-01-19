@@ -100,7 +100,9 @@ runs:
       run: |
         PLATFORM="${{ inputs.platform }}"
         PLATFORM_SUFFIX="${PLATFORM//\//-}"
-        echo "suffix=$PLATFORM_SUFFIX" >> $GITHUB_OUTPUT        
+        ARCH="${PLATFORM#*/}"
+        echo "suffix=$PLATFORM_SUFFIX" >> $GITHUB_OUTPUT
+        echo "arch=$ARCH" >> $GITHUB_OUTPUT        
     - name: Set tag
       shell: bash
       env:
@@ -121,10 +123,11 @@ runs:
       with:
           context: .
           platforms: ${{ inputs.platform }}
-          push: false
+          push: true
           provenance: false
-          outputs: type=docker,dest=${{ runner.temp }}/image${{inputs.tag-prefix}}-${{ steps.platform.outputs.suffix }}.tar,compression=gzip
-          tags: ${{ steps.login-ecr.outputs.registry }}/${{inputs.image}}:${{inputs.tag-prefix}}oneclick-${{ env.BUILD_NUMBER }}
+          sbom: false
+          outputs: type=image,push=true,oci-mediatypes=true
+          tags: ${{ steps.login-ecr.outputs.registry }}/${{inputs.image}}:${{inputs.tag-prefix}}oneclick-${{ env.BUILD_NUMBER }}-${{ steps.platform.outputs.arch }}
           file: ${{inputs.dockerfile}}
           build-args: ${{ inputs.build-args }}
           cache-from: type=gha,scope=${{ inputs.image }}-${{ steps.platform.outputs.suffix }}
@@ -135,10 +138,11 @@ runs:
       with:
           context: .
           platforms: ${{ inputs.platform }}
-          push: false
+          push: true
           provenance: false
-          outputs: type=docker,dest=${{ runner.temp }}/image${{inputs.tag-prefix}}-${{ steps.platform.outputs.suffix }}.tar,compression=gzip
-          tags: ${{ steps.login-ecr.outputs.registry }}/${{inputs.image}}:${{inputs.tag-prefix}}oneclickpr-${{ steps.findPr.outputs.pr }}-${{ env.BUILD_NUMBER }}
+          sbom: false
+          outputs: type=image,push=true,oci-mediatypes=true
+          tags: ${{ steps.login-ecr.outputs.registry }}/${{inputs.image}}:${{inputs.tag-prefix}}oneclickpr-${{ steps.findPr.outputs.pr }}-${{ env.BUILD_NUMBER }}-${{ steps.platform.outputs.arch }}
           file: ${{inputs.dockerfile}}
           build-args: ${{ inputs.build-args }}
           cache-from: type=gha,scope=${{ inputs.image }}-${{ steps.platform.outputs.suffix }}
@@ -158,17 +162,12 @@ runs:
       with:
           context: .
           platforms: ${{ inputs.platform }}
-          push: false
+          push: true
           provenance: false
-          outputs: type=docker,dest=${{ runner.temp }}/image${{inputs.tag-prefix}}-${{ steps.platform.outputs.suffix }}.tar,compression=gzip
-          tags: ${{ steps.login-ecr.outputs.registry }}/${{inputs.image}}:${{inputs.tag-prefix}}oneclickrelease-${{ env.BUILD_NUMBER }}
+          sbom: false
+          outputs: type=image,push=true,oci-mediatypes=true
+          tags: ${{ steps.login-ecr.outputs.registry }}/${{inputs.image}}:${{inputs.tag-prefix}}oneclickrelease-${{ env.BUILD_NUMBER }}-${{ steps.platform.outputs.arch }}
           file: ${{inputs.dockerfile}}
           build-args: ${{ inputs.build-args }}
           cache-from: type=gha,scope=${{ inputs.image }}-${{ steps.platform.outputs.suffix }}
           cache-to: type=gha,scope=${{ inputs.image }}-${{ steps.platform.outputs.suffix }},mode=max
-
-    - name: Upload Docker Artifact
-      uses: actions/upload-artifact@v4
-      with:
-        name: docker-image-${{inputs.image}}${{inputs.tag-prefix}}-${{ steps.platform.outputs.suffix }}
-        path: ${{ runner.temp }}/image${{inputs.tag-prefix}}-${{ steps.platform.outputs.suffix }}.tar
