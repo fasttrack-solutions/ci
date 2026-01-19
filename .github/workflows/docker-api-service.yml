@@ -109,6 +109,7 @@ jobs:
           dockerhub_username: ${{ inputs.dockerhub_username }}
           dockerhub_pull_token: ${{ secrets.DOCKERHUB_PULL_TOKEN }}
           tag-prefix: ${{ inputs.tag-prefix-service }}
+          multi_arch: ${{ inputs.multi_arch }}
 
   create-api-manifest:
     needs: build-api
@@ -123,4 +124,5 @@ jobs:
           ecr_aws_secret_key: ${{ secrets.FT_ECR_AWS_SECRET_ACCESS_KEY }}
           dockerhub_username: ${{ inputs.dockerhub_username }}
           dockerhub_pull_token: ${{ secrets.DOCKERHUB_PULL_TOKEN }}
-          tag-prefix: ${{ inputs.tag-prefix-api }}        
+          tag-prefix: ${{ inputs.tag-prefix-api }}
+          multi_arch: ${{ inputs.multi_arch }}        

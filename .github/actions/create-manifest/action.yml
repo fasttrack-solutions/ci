@@ -33,6 +33,10 @@ inputs:
     description: "GitHub token for PR detection"
     required: false
     default: ""
+  multi_arch:
+    description: "Whether to include ARM64 in the manifest (default: false, amd64 only)"
+    required: false
+    default: "false"
 
 runs:
   using: "composite"
@@ -76,6 +80,7 @@ runs:
         REGISTRY="${{ steps.login-ecr.outputs.registry }}"
         IMAGE="${{ inputs.image }}"
         PREFIX="${{ inputs.tag-prefix }}"
+        MULTI_ARCH="${{ inputs.multi_arch }}"
 
         # Determine the base tag (same logic as build action)
         if [[ "${{ github.ref }}" == "refs/heads/master" || "${{ github.ref }}" == "refs/heads/main" ]]; then
@@ -95,23 +100,16 @@ runs:
         echo "Creating manifest for ${MANIFEST_IMAGE}"
         echo "  - AMD64: ${AMD64_IMAGE}"
 
-        # Check if ARM64 image exists
-        ARM64_EXISTS=false
-        if docker manifest inspect "${ARM64_IMAGE}" > /dev/null 2>&1; then
-          ARM64_EXISTS=true
+        # Use multi_arch input to determine whether to include ARM64
+        if [[ "$MULTI_ARCH" == "true" ]]; then
           echo "  - ARM64: ${ARM64_IMAGE}"
-        else
-          echo "  - ARM64: not available (single-arch build)"
-        fi
-
-        # Create the manifest with available images
-        if [[ "$ARM64_EXISTS" == "true" ]]; then
           docker manifest create "${MANIFEST_IMAGE}" \
             "${AMD64_IMAGE}" \
             "${ARM64_IMAGE}"
           docker manifest annotate "${MANIFEST_IMAGE}" "${AMD64_IMAGE}" --os linux --arch amd64
           docker manifest annotate "${MANIFEST_IMAGE}" "${ARM64_IMAGE}" --os linux --arch arm64
         else
+          echo "  - ARM64: not included (single-arch build)"
           docker manifest create "${MANIFEST_IMAGE}" \
             "${AMD64_IMAGE}"
           docker manifest annotate "${MANIFEST_IMAGE}" "${AMD64_IMAGE}" --os linux --arch amd64
@@ -130,6 +128,7 @@ runs:
         REGISTRY="${{ steps.login-ecr.outputs.registry }}"
         IMAGE="${{ inputs.image }}"
         PREFIX="${{ inputs.tag-prefix }}"
+        MULTI_ARCH="${{ inputs.multi_arch }}"
 
         AMD64_IMAGE="${REGISTRY}/${IMAGE}:${PREFIX}latest-amd64"
         ARM64_IMAGE="${REGISTRY}/${IMAGE}:${PREFIX}latest-arm64"
@@ -137,13 +136,8 @@ runs:
 
         echo "Creating latest manifest for ${MANIFEST_IMAGE}"
 
-        # Check if ARM64 image exists
-        ARM64_EXISTS=false
-        if docker manifest inspect "${ARM64_IMAGE}" > /dev/null 2>&1; then
-          ARM64_EXISTS=true
-        fi
-
-        if [[ "$ARM64_EXISTS" == "true" ]]; then
+        # Use multi_arch input to determine whether to include ARM64
+        if [[ "$MULTI_ARCH" == "true" ]]; then
           docker manifest create "${MANIFEST_IMAGE}" \
             "${AMD64_IMAGE}" \
             "${ARM64_IMAGE}"
