@@ -63,7 +63,7 @@ jobs:
     steps:
       - name: Build & Publish
         id: build
-        uses: fasttrack-solutions/ci/.github/actions/build-publish-docker@main
+        uses: fasttrack-solutions/ci/.github/actions/build-publish-docker@claude/optimize-ci-actions-Ldzjk
         with:
           image: ${{ inputs.image }}
           tag-prefix: ${{ inputs.tag-prefix }}
@@ -86,7 +86,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Create multi-arch manifest
-        uses: fasttrack-solutions/ci/.github/actions/create-manifest@main
+        uses: fasttrack-solutions/ci/.github/actions/create-manifest@claude/optimize-ci-actions-Ldzjk
         with:
           image: ${{ inputs.image }}
           start-build-from: ${{ inputs.start-build-from }}

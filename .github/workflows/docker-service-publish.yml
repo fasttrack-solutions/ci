@@ -53,7 +53,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - name: Build & Publish
-      uses: fasttrack-solutions/ci/.github/actions/load-image-publish@main
+      uses: fasttrack-solutions/ci/.github/actions/load-image-publish@claude/optimize-ci-actions-Ldzjk
       with:
         image: ${{ inputs.image }}
         tag-prefix: ${{ inputs.tag-prefix }}
