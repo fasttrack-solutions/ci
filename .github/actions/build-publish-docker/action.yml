@@ -55,6 +55,17 @@ inputs:
   dockerhub_pull_token:
     description: "dockerhub pull token"
     required: true
+  platform:
+    description: "Target platform (e.g., linux/amd64, linux/arm64)"
+    required: false
+    default: "linux/amd64"
+outputs:
+  image-tag:
+    description: "The pushed image tag (without registry)"
+    value: ${{ steps.set-output.outputs.image-tag }}
+  full-image:
+    description: "The full pushed image with registry"
+    value: ${{ steps.set-output.outputs.full-image }}
 runs:
   using: "composite"
   steps:
@@ -96,7 +107,18 @@ runs:
       with:
         buildkitd-config-inline: |
           [registry."dhi.io"]
-            mirrors = ["dhi.io"]      
+            mirrors = ["dhi.io"]
+    - name: Set platform suffix
+      id: platform
+      shell: bash
+      run: |
+        PLATFORM="${{ inputs.platform }}"
+        # Convert linux/amd64 to linux-amd64
+        PLATFORM_SUFFIX="${PLATFORM//\//-}"
+        # Extract just the arch (amd64, arm64)
+        ARCH="${PLATFORM#*/}"
+        echo "suffix=$PLATFORM_SUFFIX" >> $GITHUB_OUTPUT
+        echo "arch=$ARCH" >> $GITHUB_OUTPUT
     - name: Set tag
       shell: bash
       env:
@@ -116,9 +138,9 @@ runs:
       uses: docker/build-push-action@v6
       with:
         context: .
-        platforms: linux/amd64
+        platforms: ${{ inputs.platform }}
         push: true
-        tags: ${{ steps.login-ecr.outputs.registry }}/${{inputs.image}}:${{inputs.tag-prefix}}oneclick-${{ env.BUILD_NUMBER }}
+        tags: ${{ steps.login-ecr.outputs.registry }}/${{inputs.image}}:${{inputs.tag-prefix}}oneclick-${{ env.BUILD_NUMBER }}-${{ steps.platform.outputs.arch }}
         file: ${{inputs.dockerfile}}
         build-args: ${{ inputs.build-args }}
         cache-from: type=gha,scope=${{ inputs.image }}
@@ -128,9 +150,9 @@ runs:
       uses: docker/build-push-action@v6
       with:
         context: .
-        platforms: linux/amd64
+        platforms: ${{ inputs.platform }}
         push: true
-        tags: ${{ steps.login-ecr.outputs.registry }}/${{inputs.image}}:${{inputs.tag-prefix}}latest
+        tags: ${{ steps.login-ecr.outputs.registry }}/${{inputs.image}}:${{inputs.tag-prefix}}latest-${{ steps.platform.outputs.arch }}
         file: ${{inputs.dockerfile}}
         build-args: ${{ inputs.build-args }}
         cache-from: type=gha,scope=${{ inputs.image }}
@@ -140,9 +162,9 @@ runs:
       uses: docker/build-push-action@v6
       with:
         context: .
-        platforms: linux/amd64
+        platforms: ${{ inputs.platform }}
         push: true
-        tags: ${{ steps.login-ecr.outputs.registry }}/${{inputs.image}}:${{inputs.tag-prefix}}oneclickpr-${{ steps.findPr.outputs.pr }}-${{ env.BUILD_NUMBER }}
+        tags: ${{ steps.login-ecr.outputs.registry }}/${{inputs.image}}:${{inputs.tag-prefix}}oneclickpr-${{ steps.findPr.outputs.pr }}-${{ env.BUILD_NUMBER }}-${{ steps.platform.outputs.arch }}
         file: ${{inputs.dockerfile}}
         build-args: ${{ inputs.build-args }}
         cache-from: type=gha,scope=${{ inputs.image }}
@@ -161,10 +183,31 @@ runs:
       uses: docker/build-push-action@v6
       with:
         context: .
-        platforms: linux/amd64
+        platforms: ${{ inputs.platform }}
         push: true
-        tags: ${{ steps.login-ecr.outputs.registry }}/${{inputs.image}}:${{inputs.tag-prefix}}oneclickrelease-${{ env.BUILD_NUMBER }}
+        tags: ${{ steps.login-ecr.outputs.registry }}/${{inputs.image}}:${{inputs.tag-prefix}}oneclickrelease-${{ env.BUILD_NUMBER }}-${{ steps.platform.outputs.arch }}
         file: ${{inputs.dockerfile}}
         build-args: ${{ inputs.build-args }}
         cache-from: type=gha,scope=${{ inputs.image }}
         cache-to: type=gha,scope=${{ inputs.image }},mode=max
+    - name: Set outputs
+      id: set-output
+      shell: bash
+      run: |
+        # Determine the base tag (without arch suffix)
+        if [[ "${{ github.ref }}" == "refs/heads/master" || "${{ github.ref }}" == "refs/heads/main" ]]; then
+          BASE_TAG="${{ inputs.tag-prefix }}oneclick-${{ env.BUILD_NUMBER }}"
+        elif [[ "${{ github.ref }}" == *"release"* ]]; then
+          BASE_TAG="${{ inputs.tag-prefix }}oneclickrelease-${{ env.BUILD_NUMBER }}"
+        elif [[ -n "${{ steps.findPr.outputs.pr }}" ]]; then
+          BASE_TAG="${{ inputs.tag-prefix }}oneclickpr-${{ steps.findPr.outputs.pr }}-${{ env.BUILD_NUMBER }}"
+        else
+          BASE_TAG="${{ inputs.tag-prefix }}oneclick-${{ env.BUILD_NUMBER }}"
+        fi
+
+        ARCH_TAG="${BASE_TAG}-${{ steps.platform.outputs.arch }}"
+        FULL_IMAGE="${{ steps.login-ecr.outputs.registry }}/${{ inputs.image }}:${ARCH_TAG}"
+
+        echo "image-tag=${ARCH_TAG}" >> $GITHUB_OUTPUT
+        echo "full-image=${FULL_IMAGE}" >> $GITHUB_OUTPUT
+        echo "base-tag=${BASE_TAG}" >> $GITHUB_OUTPUT

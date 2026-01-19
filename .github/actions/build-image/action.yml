@@ -46,7 +46,11 @@ inputs:
     default: "tazerr"
   dockerhub_pull_token:
     description: "dockerhub pull token"
-    required: true        
+    required: true
+  platform:
+    description: "Target platform (e.g., linux/amd64, linux/arm64)"
+    required: false
+    default: "linux/amd64"
 runs:
   using: composite
   steps:
@@ -83,13 +87,20 @@ runs:
         known_hosts: ${{ inputs.ssh_known_hosts }}         
     - name: Copy SSH Key
       shell: bash
-      run: cp ~/.ssh/id_rsa .  
+      run: cp ~/.ssh/id_rsa .
     - name: Set up Docker Buildx
       uses: docker/setup-buildx-action@v3
       with:
         buildkitd-config-inline: |
           [registry."dhi.io"]
-            mirrors = ["dhi.io"]        
+            mirrors = ["dhi.io"]
+    - name: Set platform suffix
+      id: platform
+      shell: bash
+      run: |
+        PLATFORM="${{ inputs.platform }}"
+        PLATFORM_SUFFIX="${PLATFORM//\//-}"
+        echo "suffix=$PLATFORM_SUFFIX" >> $GITHUB_OUTPUT        
     - name: Set tag
       shell: bash
       env:
@@ -109,9 +120,9 @@ runs:
       uses: docker/build-push-action@v6
       with:
           context: .
-          platforms: linux/amd64
+          platforms: ${{ inputs.platform }}
           push: false
-          outputs: type=docker,dest=${{ runner.temp }}/image${{inputs.tag-prefix}}.tar
+          outputs: type=docker,dest=${{ runner.temp }}/image${{inputs.tag-prefix}}-${{ steps.platform.outputs.suffix }}.tar
           tags: ${{ steps.login-ecr.outputs.registry }}/${{inputs.image}}:${{inputs.tag-prefix}}oneclick-${{ env.BUILD_NUMBER }}
           file: ${{inputs.dockerfile}}
           build-args: ${{ inputs.build-args }}
@@ -122,9 +133,9 @@ runs:
       uses: docker/build-push-action@v6
       with:
           context: .
-          platforms: linux/amd64
+          platforms: ${{ inputs.platform }}
           push: false
-          outputs: type=docker,dest=${{ runner.temp }}/image${{inputs.tag-prefix}}.tar
+          outputs: type=docker,dest=${{ runner.temp }}/image${{inputs.tag-prefix}}-${{ steps.platform.outputs.suffix }}.tar
           tags: ${{ steps.login-ecr.outputs.registry }}/${{inputs.image}}:${{inputs.tag-prefix}}oneclickpr-${{ steps.findPr.outputs.pr }}-${{ env.BUILD_NUMBER }}
           file: ${{inputs.dockerfile}}
           build-args: ${{ inputs.build-args }}
@@ -144,9 +155,9 @@ runs:
       uses: docker/build-push-action@v6
       with:
           context: .
-          platforms: linux/amd64
+          platforms: ${{ inputs.platform }}
           push: false
-          outputs: type=docker,dest=${{ runner.temp }}/image${{inputs.tag-prefix}}.tar
+          outputs: type=docker,dest=${{ runner.temp }}/image${{inputs.tag-prefix}}-${{ steps.platform.outputs.suffix }}.tar
           tags: ${{ steps.login-ecr.outputs.registry }}/${{inputs.image}}:${{inputs.tag-prefix}}oneclickrelease-${{ env.BUILD_NUMBER }}
           file: ${{inputs.dockerfile}}
           build-args: ${{ inputs.build-args }}
@@ -156,5 +167,5 @@ runs:
     - name: Upload Docker Artifact
       uses: actions/upload-artifact@v4
       with:
-        name: docker-image-${{inputs.image}}${{inputs.tag-prefix}}
-        path: ${{ runner.temp }}/image${{inputs.tag-prefix}}.tar
+        name: docker-image-${{inputs.image}}${{inputs.tag-prefix}}-${{ steps.platform.outputs.suffix }}
+        path: ${{ runner.temp }}/image${{inputs.tag-prefix}}-${{ steps.platform.outputs.suffix }}.tar
