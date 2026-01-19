@@ -57,7 +57,7 @@ jobs:
     runs-on: ${{ matrix.runner }}
     steps:
     - name: Build & Publish
-      uses: fasttrack-solutions/ci/.github/actions/build-publish-docker@feat/multi-arch-docker-builds
+      uses: fasttrack-solutions/ci/.github/actions/build-publish-docker@main
       with:
         image: ${{ inputs.image }}
         tag-prefix: ${{ inputs.tag-prefix-service }}
@@ -80,7 +80,7 @@ jobs:
     runs-on: ${{ matrix.runner }}
     steps:
     - name: Build & Publish
-      uses: fasttrack-solutions/ci/.github/actions/build-publish-docker@feat/multi-arch-docker-builds
+      uses: fasttrack-solutions/ci/.github/actions/build-publish-docker@main
       with:
         image: ${{ inputs.image }}
         tag-prefix: ${{ inputs.tag-prefix-api }}
@@ -100,7 +100,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Create multi-arch manifest for service
-        uses: fasttrack-solutions/ci/.github/actions/create-manifest@feat/multi-arch-docker-builds
+        uses: fasttrack-solutions/ci/.github/actions/create-manifest@main
         with:
           image: ${{ inputs.image }}
           start-build-from: ${{ inputs.start-build-from }}
@@ -115,7 +115,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Create multi-arch manifest for API
-        uses: fasttrack-solutions/ci/.github/actions/create-manifest@feat/multi-arch-docker-builds
+        uses: fasttrack-solutions/ci/.github/actions/create-manifest@main
         with:
           image: ${{ inputs.image }}
           start-build-from: ${{ inputs.start-build-from }}
