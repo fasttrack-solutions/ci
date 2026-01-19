@@ -122,6 +122,7 @@ runs:
           context: .
           platforms: ${{ inputs.platform }}
           push: false
+          provenance: false
           outputs: type=docker,dest=${{ runner.temp }}/image${{inputs.tag-prefix}}-${{ steps.platform.outputs.suffix }}.tar
           tags: ${{ steps.login-ecr.outputs.registry }}/${{inputs.image}}:${{inputs.tag-prefix}}oneclick-${{ env.BUILD_NUMBER }}
           file: ${{inputs.dockerfile}}
@@ -135,6 +136,7 @@ runs:
           context: .
           platforms: ${{ inputs.platform }}
           push: false
+          provenance: false
           outputs: type=docker,dest=${{ runner.temp }}/image${{inputs.tag-prefix}}-${{ steps.platform.outputs.suffix }}.tar
           tags: ${{ steps.login-ecr.outputs.registry }}/${{inputs.image}}:${{inputs.tag-prefix}}oneclickpr-${{ steps.findPr.outputs.pr }}-${{ env.BUILD_NUMBER }}
           file: ${{inputs.dockerfile}}
@@ -157,6 +159,7 @@ runs:
           context: .
           platforms: ${{ inputs.platform }}
           push: false
+          provenance: false
           outputs: type=docker,dest=${{ runner.temp }}/image${{inputs.tag-prefix}}-${{ steps.platform.outputs.suffix }}.tar
           tags: ${{ steps.login-ecr.outputs.registry }}/${{inputs.image}}:${{inputs.tag-prefix}}oneclickrelease-${{ env.BUILD_NUMBER }}
           file: ${{inputs.dockerfile}}
