@@ -61,7 +61,7 @@ jobs:
   build:
     runs-on: ${{ inputs.runner }}
     steps:
-    - uses: actions/checkout@v5
+    - uses: actions/checkout@v6
 
     - name: Docker Hub login
       run: echo "${{ secrets.DOCKERHUB_PULL_TOKEN }}" | docker login -u "${{ inputs.dockerhub_username }}" --password-stdin
