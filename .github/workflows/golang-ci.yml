@@ -23,6 +23,11 @@ on:
         required: false
         type: boolean
         default: false
+      python-version:
+        description: "Python version to use"
+        required: false
+        type: string
+        default: "3.12"
       python_pip_install:
         description: "install python packages"
         type: boolean
@@ -115,7 +120,7 @@ jobs:
       if: inputs.python_pip_install == true
       uses: actions/setup-python@v5
       with:
-        python-version: '3.x'
+        python-version: ${{ inputs.python-version }}
         cache: 'pip'
 
     - name: pip install
