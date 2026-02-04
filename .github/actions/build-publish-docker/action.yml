@@ -93,12 +93,17 @@ runs:
         aws-secret-access-key: ${{ inputs.ecr_aws_secret_key }}
         aws-region: eu-west-1
     - name: Docker Hub login
-      shell: bash
-      run: echo "${{ inputs.dockerhub_pull_token }}" | docker login -u "${{ inputs.dockerhub_username }}" --password-stdin
+      uses: docker/login-action@v3
+      with:
+        username: ${{ inputs.dockerhub_username }}
+        password: ${{ inputs.dockerhub_pull_token }}
 
     - name: DHI registry login
-      shell: bash
-      run: echo "${{ inputs.dockerhub_pull_token }}" | docker login dhi.io -u "${{ inputs.dockerhub_username }}" --password-stdin                 
+      uses: docker/login-action@v3
+      with:
+        registry: dhi.io
+        username: ${{ inputs.dockerhub_username }}
+        password: ${{ inputs.dockerhub_pull_token }}                 
     - name: Login to Amazon ECR
       id: login-ecr
       uses: aws-actions/amazon-ecr-login@v2
