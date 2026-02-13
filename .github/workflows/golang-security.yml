@@ -112,11 +112,11 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/go/bin
-          key: go-security-tools-${{ runner.os }}-gosec
+          key: go-security-tools-${{ runner.os }}-${{ inputs.go-version }}-gosec
 
       - name: Install go sec
         run: |
-          if [ ! -f ~/go/bin/gosec ]; then
+          if ! command -v gosec &> /dev/null; then
             go install github.com/securego/gosec/v2/cmd/gosec@latest
           fi
 
