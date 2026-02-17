@@ -147,7 +147,7 @@ jobs:
           key: ${{ secrets.FT_SSH_KEY }}
           known_hosts: ${{ secrets.FT_BITBUCKET_KNOWN_HOSTS }}
       - name: Setup Golang with cache
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v6
         with:
           go-version: ${{ inputs.go-version }}
           cache: true
