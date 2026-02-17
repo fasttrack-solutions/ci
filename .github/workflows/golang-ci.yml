@@ -178,7 +178,7 @@ jobs:
       run: MYSQL_VERSION=${{ inputs.go-test-mysql-version }} gotestsum --junitfile test-reports/report.xml -- -timeout ${{ inputs.go-test-timeout }} -parallel=5 -covermode=atomic -coverprofile=cover.out ${{ inputs.go-test-tags && format('-tags={0}', inputs.go-test-tags) || '' }} ./...
 
     - name: Test Report
-      uses: dorny/test-reporter@v1
+      uses: dorny/test-reporter@v2
       if: success() || failure()    # run this step even if previous step failed
       with:
         name: Unit tests            # Name of the check run which will be created
