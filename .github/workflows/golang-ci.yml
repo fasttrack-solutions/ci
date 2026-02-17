@@ -41,11 +41,16 @@ on:
         required: false
         type: string
         default: "ubuntu-latest"
+      go-test-tags:
+        description: "Go build tags for test filtering (e.g. 'integration' or 'integration,e2e')"
+        required: false
+        type: string
+        default: ""
       dockerhub_username:
         description: "dockerhub username"
         required: false
         type: string
-        default: "tazerr"        
+        default: "tazerr"
     secrets:
       FT_SSH_KEY:
         required: true
@@ -170,7 +175,7 @@ jobs:
         fi
 
     - name: Run Test
-      run: MYSQL_VERSION=${{ inputs.go-test-mysql-version }} gotestsum --junitfile test-reports/report.xml -- -timeout ${{ inputs.go-test-timeout }} -parallel=5 -covermode=atomic -coverprofile=cover.out ./...
+      run: MYSQL_VERSION=${{ inputs.go-test-mysql-version }} gotestsum --junitfile test-reports/report.xml -- -timeout ${{ inputs.go-test-timeout }} -parallel=5 -covermode=atomic -coverprofile=cover.out ${{ inputs.go-test-tags && format('-tags={0}', inputs.go-test-tags) || '' }} ./...
 
     - name: Test Report
       uses: dorny/test-reporter@v1
