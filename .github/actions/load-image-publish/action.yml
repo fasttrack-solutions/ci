@@ -65,14 +65,14 @@ runs:
         password: ${{ inputs.dockerhub_pull_token }}
 
     - name: Download amd64 artifact
-      uses: actions/download-artifact@v4
+      uses: actions/download-artifact@v7
       with:
         name: docker-image-${{inputs.image}}${{inputs.tag-prefix}}-linux-amd64
         path: ${{ runner.temp }}/amd64
 
     - name: Download arm64 artifact
       if: inputs.multi_arch == 'true'
-      uses: actions/download-artifact@v4
+      uses: actions/download-artifact@v7
       with:
         name: docker-image-${{inputs.image}}${{inputs.tag-prefix}}-linux-arm64
         path: ${{ runner.temp }}/arm64
