@@ -51,7 +51,7 @@ jobs:
         run: export GOPRIVATE=bitbucket.org/fasttrackdevteam,github.com/fasttrack-solutions
 
       - name: Install SSH Key
-        uses: shimataro/ssh-key-action@v2.3.1
+        uses: shimataro/ssh-key-action@v2.8.0
         with:
           key: ${{ secrets.FT_SSH_KEY }}
           known_hosts: ${{ secrets.FT_BITBUCKET_KNOWN_HOSTS }}
@@ -98,7 +98,7 @@ jobs:
         run: export GOPRIVATE=bitbucket.org/fasttrackdevteam,github.com/fasttrack-solutions
 
       - name: Install SSH Key
-        uses: shimataro/ssh-key-action@v2.3.1
+        uses: shimataro/ssh-key-action@v2.8.0
         with:
           key: ${{ secrets.FT_SSH_KEY }}
           known_hosts: ${{ secrets.FT_BITBUCKET_KNOWN_HOSTS }}
@@ -142,7 +142,7 @@ jobs:
         run: export GOPRIVATE=bitbucket.org/fasttrackdevteam,github.com/fasttrack-solutions
 
       - name: Install SSH Key
-        uses: shimataro/ssh-key-action@v2.3.1
+        uses: shimataro/ssh-key-action@v2.8.0
         with:
           key: ${{ secrets.FT_SSH_KEY }}
           known_hosts: ${{ secrets.FT_BITBUCKET_KNOWN_HOSTS }}

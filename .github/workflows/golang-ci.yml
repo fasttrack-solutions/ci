@@ -118,7 +118,7 @@ jobs:
           libvips libvips-dev       
 
     - name: Install SSH Key
-      uses: shimataro/ssh-key-action@v2.3.1
+      uses: shimataro/ssh-key-action@v2.8.0
       with:
         key: ${{ secrets.FT_SSH_KEY }}
         known_hosts: ${{ secrets.FT_BITBUCKET_KNOWN_HOSTS }}
