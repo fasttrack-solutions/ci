@@ -1,0 +1,139 @@
+name: Grafana Dashboard Setup
+description: Install grafanactl, pre-check dashboard files (v2 format, duplicates), and preprocess for validate/push
+
+inputs:
+  grafana-server:
+    description: Grafana instance URL
+    required: true
+  grafana-stack-id:
+    description: Grafana Cloud stack ID (e.g. stacks-1212286 or 1212286)
+    required: true
+  grafana-token:
+    description: Grafana service account token
+    required: true
+  grafanactl-version:
+    description: Pinned grafanactl release version
+    required: false
+    default: "v0.1.9"
+  dashboard-path:
+    description: Path to dashboards directory relative to repo root
+    required: false
+    default: "grafana/dashboards"
+
+runs:
+  using: composite
+  steps:
+    - name: Check required configuration
+      shell: bash
+      env:
+        GRAFANA_SERVER: ${{ inputs.grafana-server }}
+        GRAFANA_STACK_ID: ${{ inputs.grafana-stack-id }}
+        GRAFANA_TOKEN: ${{ inputs.grafana-token }}
+      run: |
+        missing=()
+        [ -z "$GRAFANA_SERVER" ] && missing+=("grafana-server")
+        [ -z "$GRAFANA_STACK_ID" ] && missing+=("grafana-stack-id")
+        [ -z "$GRAFANA_TOKEN" ] && missing+=("grafana-token")
+        if [ ${#missing[@]} -gt 0 ]; then
+          echo "::error::Missing required inputs: ${missing[*]}"
+          exit 1
+        fi
+
+    - name: Install and configure grafanactl
+      shell: bash
+      env:
+        GRAFANA_SERVER: ${{ inputs.grafana-server }}
+        GRAFANA_STACK_ID: ${{ inputs.grafana-stack-id }}
+        GRAFANA_TOKEN: ${{ inputs.grafana-token }}
+      run: |
+        curl -L -o grafanactl.tar.gz \
+          "https://github.com/grafana/grafanactl/releases/download/${{ inputs.grafanactl-version }}/grafanactl_Linux_x86_64.tar.gz"
+        tar -xzf grafanactl.tar.gz
+        chmod +x grafanactl
+        sudo mv grafanactl /usr/local/bin/grafanactl
+        grafanactl --version
+
+        STACK_ID_NUM=$(echo "$GRAFANA_STACK_ID" | sed 's/^stacks-//')
+        mkdir -p ~/.config/grafanactl
+        cat > ~/.config/grafanactl/config.yaml << EOF
+        contexts:
+          default:
+            grafana:
+              server: ${GRAFANA_SERVER}
+              stack-id: ${STACK_ID_NUM}
+              token: ${GRAFANA_TOKEN}
+        EOF
+
+    - name: Pre-check and preprocess dashboards
+      shell: bash
+      env:
+        DASHBOARD_PATH: ${{ inputs.dashboard-path }}
+        REPO_NAME: ${{ github.event.repository.name }}
+      run: |
+        set -u
+
+        normalize_uid() {
+          echo "$1" | tr '[:upper:]' '[:lower:]' | sed 's/ /-/g; s/[^a-z0-9-]//g'
+        }
+
+        if [ ! -d "$DASHBOARD_PATH" ]; then
+          echo "No dashboards directory found at ${DASHBOARD_PATH}, nothing to process"
+          exit 0
+        fi
+
+        TEMP_DIR=$(mktemp -d)
+        echo "TEMP_DIR=${TEMP_DIR}" >> "$GITHUB_ENV"
+
+        error_count=0
+        declare -A seen_filenames
+
+        shopt -s nullglob
+        for folder_dir in "${DASHBOARD_PATH}"/*/; do
+          folder_name=$(basename "$folder_dir")
+          folder_uid=$(normalize_uid "$folder_name")
+
+          for file in "${folder_dir}"*.json; do
+            filename=$(basename "$file" .json)
+            rel="${file#${DASHBOARD_PATH}/}"
+
+            # Verify v2 format
+            api_version=$(jq -r '.apiVersion // empty' "$file")
+            if [ "$api_version" != "dashboard.grafana.app/v2" ]; then
+              echo "::error file=${file}::Must use apiVersion 'dashboard.grafana.app/v2', found '${api_version:-none}'"
+              error_count=$((error_count + 1))
+              continue
+            fi
+
+            # Check duplicate filenames across folders
+            dashboard_uid="${REPO_NAME}-$(normalize_uid "$filename")"
+            if [ -n "${seen_filenames[$dashboard_uid]:-}" ]; then
+              echo "::error file=${file}::Duplicate filename '${filename}.json' (also in ${seen_filenames[$dashboard_uid]})"
+              error_count=$((error_count + 1))
+              continue
+            fi
+            seen_filenames[$dashboard_uid]="$rel"
+
+            # Preprocess: inject UID, github-ci-managed tag, folder annotation, strip server metadata
+            jq --arg name "$dashboard_uid" \
+               --arg folder "$folder_uid" \
+              '
+                .metadata.name = $name |
+                .metadata.annotations["grafana.app/folder"] = $folder |
+                .spec.tags = ((.spec.tags // []) + ["github-ci-managed"] | unique) |
+                del(.metadata.resourceVersion, .metadata.uid, .metadata.namespace,
+                    .metadata.generation, .metadata.creationTimestamp)
+              ' "$file" > "${TEMP_DIR}/${dashboard_uid}.json"
+
+            echo "Preprocessed: ${rel} (uid: ${dashboard_uid})"
+          done
+        done
+
+        if [ "$error_count" -gt 0 ]; then
+          echo "::error::Pre-check failed with ${error_count} error(s)"
+          exit 1
+        fi
+
+        if [ -z "$(ls -A "$TEMP_DIR" 2>/dev/null)" ]; then
+          echo "No dashboard files found, nothing to process"
+          exit 0
+        fi

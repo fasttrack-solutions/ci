@@ -1,0 +1,156 @@
+name: Grafana Dashboard Publish
+
+on:
+  workflow_call:
+    inputs:
+      dashboard-path:
+        required: false
+        type: string
+        default: "grafana/dashboards"
+      grafanactl-version:
+        required: false
+        type: string
+        default: "v0.1.9"
+    secrets:
+      GRAFANA_SERVER:
+        required: true
+      GRAFANA_STACK_ID:
+        required: true
+      GRAFANA_TOKEN:
+        required: true
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    env:
+      GRAFANA_SERVER: ${{ secrets.GRAFANA_SERVER }}
+      GRAFANA_TOKEN: ${{ secrets.GRAFANA_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: ./.github/actions/grafana-dashboard-setup
+        with:
+          grafana-server: ${{ secrets.GRAFANA_SERVER }}
+          grafana-stack-id: ${{ secrets.GRAFANA_STACK_ID }}
+          grafana-token: ${{ secrets.GRAFANA_TOKEN }}
+          grafanactl-version: ${{ inputs.grafanactl-version }}
+          dashboard-path: ${{ inputs.dashboard-path }}
+
+      - name: Resolve and ensure folders exist
+        if: env.TEMP_DIR != ''
+        env:
+          DASHBOARD_PATH: ${{ inputs.dashboard-path }}
+        run: |
+          set -u
+
+          normalize_uid() {
+            echo "$1" | tr '[:upper:]' '[:lower:]' | sed 's/ /-/g; s/[^a-z0-9-]//g'
+          }
+
+          # Fetch all existing folders once
+          all_folders=$(curl -s --retry 2 --retry-delay 5 --max-time 30 \
+            -H "Authorization: Bearer ${GRAFANA_TOKEN}" \
+            "${GRAFANA_SERVER}/api/folders")
+
+          shopt -s nullglob
+          for folder_dir in "${DASHBOARD_PATH}"/*/; do
+            folder_name=$(basename "$folder_dir")
+            normalized_uid=$(normalize_uid "$folder_name")
+
+            # Search for existing folder by exact title match
+            existing_uid=$(echo "$all_folders" | jq -r \
+              --arg title "$folder_name" \
+              '.[] | select(.title == $title) | .uid' | head -1)
+
+            if [ -n "$existing_uid" ]; then
+              folder_uid="$existing_uid"
+              echo "Found existing folder: ${folder_name} (uid: ${folder_uid})"
+            else
+              # Create new folder with our normalized UID
+              folder_uid="$normalized_uid"
+              response=$(curl -s -w "\n%{http_code}" \
+                --retry 2 --retry-delay 5 --max-time 30 \
+                -H "Authorization: Bearer ${GRAFANA_TOKEN}" \
+                -H "Content-Type: application/json" \
+                -X POST \
+                -d "$(jq -n --arg uid "$folder_uid" --arg title "$folder_name" '{uid: $uid, title: $title}')" \
+                "${GRAFANA_SERVER}/api/folders")
+              http_code=$(echo "$response" | tail -1)
+
+              if [ "$http_code" != "200" ] && [ "$http_code" != "409" ]; then
+                echo "::error::Failed to create folder '${folder_name}': $(echo "$response" | sed '$d')"
+                exit 1
+              fi
+              echo "Created folder: ${folder_name} (uid: ${folder_uid})"
+            fi
+
+            # Update preprocessed files: replace placeholder folder UID with resolved one
+            if [ "$folder_uid" != "$normalized_uid" ]; then
+              for preprocessed_file in "${TEMP_DIR}"/*.json; do
+                current_folder=$(jq -r '.metadata.annotations["grafana.app/folder"]' "$preprocessed_file")
+                if [ "$current_folder" = "$normalized_uid" ]; then
+                  jq --arg folder "$folder_uid" \
+                    '.metadata.annotations["grafana.app/folder"] = $folder' \
+                    "$preprocessed_file" > "${preprocessed_file}.tmp" && \
+                    mv "${preprocessed_file}.tmp" "$preprocessed_file"
+                  echo "  Updated folder annotation in $(basename "$preprocessed_file"): ${normalized_uid} -> ${folder_uid}"
+                fi
+              done
+            fi
+          done
+
+      - name: Push dashboards
+        if: env.TEMP_DIR != ''
+        run: grafanactl resources push --path "$TEMP_DIR"
+
+      - name: Sync (delete orphans)
+        env:
+          DASHBOARD_PATH: ${{ inputs.dashboard-path }}
+          REPO_NAME: ${{ github.event.repository.name }}
+        run: |
+          set -u
+
+          normalize_uid() {
+            echo "$1" | tr '[:upper:]' '[:lower:]' | sed 's/ /-/g; s/[^a-z0-9-]//g'
+          }
+
+          # Collect all local dashboard UIDs
+          declare -A local_uids
+          shopt -s nullglob
+          for folder_dir in "${DASHBOARD_PATH}"/*/; do
+            for file in "${folder_dir}"*.json; do
+              filename=$(basename "$file" .json)
+              dashboard_uid="${REPO_NAME}-$(normalize_uid "$filename")"
+              local_uids[$dashboard_uid]=1
+            done
+          done
+
+          # Search globally for this repo's github-ci-managed dashboards
+          response=$(curl -s -w "\n%{http_code}" \
+            --retry 2 --retry-delay 5 --max-time 30 \
+            -H "Authorization: Bearer ${GRAFANA_TOKEN}" \
+            "${GRAFANA_SERVER}/api/search?tag=github-ci-managed&type=dash-db&limit=1000")
+          http_code=$(echo "$response" | tail -1)
+          body=$(echo "$response" | sed '$d')
+
+          if [ "$http_code" != "200" ]; then
+            echo "::warning::Failed to list dashboards for sync: ${body}"
+            exit 0
+          fi
+
+          # Filter to this repo's prefix and delete orphans
+          remote_uids=$(echo "$body" | jq -r \
+            --arg prefix "${REPO_NAME}-" \
+            '.[] | select(.uid | startswith($prefix)) | .uid')
+
+          for remote_uid in $remote_uids; do
+            if [ -z "${local_uids[$remote_uid]:-}" ]; then
+              if grafanactl resources delete "dashboards/${remote_uid}" 2>/dev/null; then
+                echo "Deleted orphan: ${remote_uid}"
+              else
+                echo "::warning::Failed to delete orphan ${remote_uid}"
+              fi
+            fi
+          done
+
+          echo "Sync complete"

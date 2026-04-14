@@ -1,0 +1,38 @@
+name: Grafana Dashboard Validate
+
+on:
+  workflow_call:
+    inputs:
+      dashboard-path:
+        required: false
+        type: string
+        default: "grafana/dashboards"
+      grafanactl-version:
+        required: false
+        type: string
+        default: "v0.1.9"
+    secrets:
+      GRAFANA_SERVER:
+        required: true
+      GRAFANA_STACK_ID:
+        required: true
+      GRAFANA_TOKEN:
+        required: true
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: ./.github/actions/grafana-dashboard-setup
+        with:
+          grafana-server: ${{ secrets.GRAFANA_SERVER }}
+          grafana-stack-id: ${{ secrets.GRAFANA_STACK_ID }}
+          grafana-token: ${{ secrets.GRAFANA_TOKEN }}
+          grafanactl-version: ${{ inputs.grafanactl-version }}
+          dashboard-path: ${{ inputs.dashboard-path }}
+
+      - name: Validate dashboards
+        if: env.TEMP_DIR != ''
+        run: grafanactl resources validate --path "$TEMP_DIR"
