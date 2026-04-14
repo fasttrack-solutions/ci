@@ -150,7 +150,9 @@ runs:
         outputs: type=image,push=true,oci-mediatypes=true
         tags: ${{ steps.login-ecr.outputs.registry }}/${{inputs.image}}:${{inputs.tag-prefix}}oneclick-${{ env.BUILD_NUMBER }}-${{ steps.platform.outputs.arch }}
         file: ${{inputs.dockerfile}}
-        build-args: ${{ inputs.build-args }}
+        build-args: |
+            BUILD_VERSION=${{ env.BUILD_NUMBER }}
+            ${{ inputs.build-args }}
         cache-from: type=gha,scope=${{ inputs.image }}-${{ steps.platform.outputs.suffix }}
         cache-to: type=gha,scope=${{ inputs.image }}-${{ steps.platform.outputs.suffix }},mode=max
     - name: Build and push latest
@@ -165,7 +167,9 @@ runs:
         outputs: type=image,push=true,oci-mediatypes=true
         tags: ${{ steps.login-ecr.outputs.registry }}/${{inputs.image}}:${{inputs.tag-prefix}}latest-${{ steps.platform.outputs.arch }}
         file: ${{inputs.dockerfile}}
-        build-args: ${{ inputs.build-args }}
+        build-args: |
+            BUILD_VERSION=${{ env.BUILD_NUMBER }}
+            ${{ inputs.build-args }}
         cache-from: type=gha,scope=${{ inputs.image }}-${{ steps.platform.outputs.suffix }}
         cache-to: type=gha,scope=${{ inputs.image }}-${{ steps.platform.outputs.suffix }},mode=max
     - name: Build and push PR
@@ -180,7 +184,9 @@ runs:
         outputs: type=image,push=true,oci-mediatypes=true
         tags: ${{ steps.login-ecr.outputs.registry }}/${{inputs.image}}:${{inputs.tag-prefix}}oneclickpr-${{ steps.findPr.outputs.pr }}-${{ env.BUILD_NUMBER }}-${{ steps.platform.outputs.arch }}
         file: ${{inputs.dockerfile}}
-        build-args: ${{ inputs.build-args }}
+        build-args: |
+            BUILD_VERSION=${{ env.BUILD_NUMBER }}
+            ${{ inputs.build-args }}
         cache-from: type=gha,scope=${{ inputs.image }}-${{ steps.platform.outputs.suffix }}
         cache-to: type=gha,scope=${{ inputs.image }}-${{ steps.platform.outputs.suffix }},mode=max
     - name: Comment oneclick PR tag
@@ -204,7 +210,9 @@ runs:
         outputs: type=image,push=true,oci-mediatypes=true
         tags: ${{ steps.login-ecr.outputs.registry }}/${{inputs.image}}:${{inputs.tag-prefix}}oneclickrelease-${{ env.BUILD_NUMBER }}-${{ steps.platform.outputs.arch }}
         file: ${{inputs.dockerfile}}
-        build-args: ${{ inputs.build-args }}
+        build-args: |
+            BUILD_VERSION=${{ env.BUILD_NUMBER }}
+            ${{ inputs.build-args }}
         cache-from: type=gha,scope=${{ inputs.image }}-${{ steps.platform.outputs.suffix }}
         cache-to: type=gha,scope=${{ inputs.image }}-${{ steps.platform.outputs.suffix }},mode=max
     - name: Set outputs
