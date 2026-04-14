@@ -28,7 +28,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: ./.github/actions/grafana-dashboard-setup
+      - uses: fasttrack-solutions/ci/.github/actions/grafana-dashboard-setup@main
         with:
           grafana-server: ${{ secrets.GRAFANA_SERVER }}
           grafana-stack-id: ${{ secrets.GRAFANA_STACK_ID }}
@@ -43,6 +43,7 @@ jobs:
         run: |
           set -u
 
+          # NOTE: duplicated in grafana-dashboard-setup/action.yml and below in this file -- keep in sync
           normalize_uid() {
             echo "$1" | tr '[:upper:]' '[:lower:]' | sed 's/ /-/g; s/[^a-z0-9-]//g'
           }
@@ -50,7 +51,7 @@ jobs:
           # Fetch all existing folders once
           all_folders=$(curl -s --retry 2 --retry-delay 5 --max-time 30 \
             -H "Authorization: Bearer ${GRAFANA_TOKEN}" \
-            "${GRAFANA_SERVER}/api/folders")
+            "${GRAFANA_SERVER}/api/folders?limit=0")
 
           shopt -s nullglob
           for folder_dir in "${DASHBOARD_PATH}"/*/; do
@@ -110,6 +111,7 @@ jobs:
         run: |
           set -u
 
+          # NOTE: duplicated in grafana-dashboard-setup/action.yml and above in this file -- keep in sync
           normalize_uid() {
             echo "$1" | tr '[:upper:]' '[:lower:]' | sed 's/ /-/g; s/[^a-z0-9-]//g'
           }
@@ -125,23 +127,34 @@ jobs:
             done
           done
 
-          # Search globally for this repo's github-ci-managed dashboards
-          response=$(curl -s -w "\n%{http_code}" \
-            --retry 2 --retry-delay 5 --max-time 30 \
-            -H "Authorization: Bearer ${GRAFANA_TOKEN}" \
-            "${GRAFANA_SERVER}/api/search?tag=github-ci-managed&type=dash-db&limit=1000")
-          http_code=$(echo "$response" | tail -1)
-          body=$(echo "$response" | sed '$d')
+          # Search globally for this repo's github-ci-managed dashboards (paginated)
+          page_size=1000
+          page=1
+          remote_uids=""
+          while true; do
+            response=$(curl -s -w "\n%{http_code}" \
+              --retry 2 --retry-delay 5 --max-time 30 \
+              -H "Authorization: Bearer ${GRAFANA_TOKEN}" \
+              "${GRAFANA_SERVER}/api/search?tag=github-ci-managed&type=dash-db&limit=${page_size}&page=${page}")
+            http_code=$(echo "$response" | tail -1)
+            body=$(echo "$response" | sed '$d')
 
-          if [ "$http_code" != "200" ]; then
-            echo "::warning::Failed to list dashboards for sync: ${body}"
-            exit 0
-          fi
+            if [ "$http_code" != "200" ]; then
+              echo "::warning::Failed to list dashboards for sync (page ${page}): ${body}"
+              exit 0
+            fi
 
-          # Filter to this repo's prefix and delete orphans
-          remote_uids=$(echo "$body" | jq -r \
-            --arg prefix "${REPO_NAME}-" \
-            '.[] | select(.uid | startswith($prefix)) | .uid')
+            page_uids=$(echo "$body" | jq -r \
+              --arg prefix "${REPO_NAME}-" \
+              '.[] | select(.uid | startswith($prefix)) | .uid')
+            remote_uids="${remote_uids}${remote_uids:+$'\n'}${page_uids}"
+
+            result_count=$(echo "$body" | jq 'length')
+            if [ "$result_count" -lt "$page_size" ]; then
+              break
+            fi
+            page=$((page + 1))
+          done
 
           for remote_uid in $remote_uids; do
             if [ -z "${local_uids[$remote_uid]:-}" ]; then

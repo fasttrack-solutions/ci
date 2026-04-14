@@ -98,6 +98,8 @@ This means dashboards published by CI land in the same folder as manually create
 
 When a dashboard file is removed from the repo and the change is merged to main, CI automatically deletes it from Grafana. This only applies to dashboards tagged `github-ci-managed` with a UID prefixed by the repo name. Manually created dashboards are never touched.
 
+**Removing all dashboard files** (or the entire `grafana/dashboards/` directory) will delete all of the repo's CI-managed dashboards from Grafana. This is intentional — the repo is the source of truth, and an empty directory means "this repo has no dashboards." Other repos' dashboards are never affected, even if they share the same Grafana instance or folder.
+
 ## Multi-Repo Safety
 
 Multiple repositories can publish dashboards to the same Grafana instance and even the same folder:
@@ -114,6 +116,8 @@ Multiple repositories can publish dashboards to the same Grafana instance and ev
 - Version history starts fresh
 
 If you need to preserve the dashboard identity, keep the filename unchanged.
+
+**Removing all dashboards** from the repo deletes all of this repo's CI-managed dashboards from Grafana on the next merge to main. If this is unintentional (e.g. you moved files to a different directory), restore them before merging.
 
 **Local-only dashboards** (e.g. for docker-compose dev environments) should not be placed in `grafana/dashboards/`. Use a separate directory like `grafana/local/` to avoid CI processing them.
 
@@ -143,10 +147,10 @@ Consumer integration in your CI workflow:
 
 ```yaml
 grafana-dashboard-validate:
-  uses: ./.github/workflows/grafana-dashboard-validate.yml
+  uses: fasttrack-solutions/ci/.github/workflows/grafana-dashboard-validate.yml@main
   secrets: inherit
 
 grafana-dashboard-publish:
-  uses: ./.github/workflows/grafana-dashboard-publish.yml
+  uses: fasttrack-solutions/ci/.github/workflows/grafana-dashboard-publish.yml@main
   secrets: inherit
 ```

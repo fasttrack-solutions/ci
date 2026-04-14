@@ -45,9 +45,10 @@ runs:
         GRAFANA_SERVER: ${{ inputs.grafana-server }}
         GRAFANA_STACK_ID: ${{ inputs.grafana-stack-id }}
         GRAFANA_TOKEN: ${{ inputs.grafana-token }}
+        GRAFANACTL_VERSION: ${{ inputs.grafanactl-version }}
       run: |
-        curl -L -o grafanactl.tar.gz \
-          "https://github.com/grafana/grafanactl/releases/download/${{ inputs.grafanactl-version }}/grafanactl_Linux_x86_64.tar.gz"
+        curl --fail -L -o grafanactl.tar.gz \
+          "https://github.com/grafana/grafanactl/releases/download/${GRAFANACTL_VERSION}/grafanactl_Linux_x86_64.tar.gz"
         tar -xzf grafanactl.tar.gz
         chmod +x grafanactl
         sudo mv grafanactl /usr/local/bin/grafanactl
@@ -72,6 +73,7 @@ runs:
       run: |
         set -u
 
+        # NOTE: duplicated in .github/workflows/grafana-dashboard-publish.yml (x2) -- keep in sync
         normalize_uid() {
           echo "$1" | tr '[:upper:]' '[:lower:]' | sed 's/ /-/g; s/[^a-z0-9-]//g'
         }
