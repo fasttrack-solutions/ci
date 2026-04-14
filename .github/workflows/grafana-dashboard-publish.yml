@@ -36,7 +36,7 @@ jobs:
           grafanactl-version: ${{ inputs.grafanactl-version }}
           dashboard-path: ${{ inputs.dashboard-path }}
 
-      - name: Resolve and ensure folders exist
+      - name: Resolve and ensure remote folders exist
         if: env.TEMP_DIR != ''
         env:
           DASHBOARD_PATH: ${{ inputs.dashboard-path }}
@@ -104,7 +104,7 @@ jobs:
         if: env.TEMP_DIR != ''
         run: grafanactl resources push --path "$TEMP_DIR"
 
-      - name: Sync (delete orphans)
+      - name: Remote sync
         env:
           DASHBOARD_PATH: ${{ inputs.dashboard-path }}
           REPO_NAME: ${{ github.event.repository.name }}
