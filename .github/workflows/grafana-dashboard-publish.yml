@@ -39,24 +39,18 @@ jobs:
       - name: Resolve and ensure remote folders exist
         if: env.TEMP_DIR != ''
         env:
-          DASHBOARD_PATH: ${{ inputs.dashboard-path }}
+          GRAFANA_MANIFEST: ${{ env.GRAFANA_MANIFEST }}
         run: |
           set -u
 
-          # NOTE: duplicated in grafana-dashboard-setup/action.yml and below in this file -- keep in sync
-          normalize_uid() {
-            echo "$1" | tr '[:upper:]' '[:lower:]' | sed 's/ /-/g; s/[^a-z0-9-]//g'
-          }
-
-          # Fetch all existing folders once
+          # Fetch all existing folders once (limit=0 returns all)
           all_folders=$(curl -s --retry 2 --retry-delay 5 --max-time 30 \
             -H "Authorization: Bearer ${GRAFANA_TOKEN}" \
             "${GRAFANA_SERVER}/api/folders?limit=0")
 
-          shopt -s nullglob
-          for folder_dir in "${DASHBOARD_PATH}"/*/; do
-            folder_name=$(basename "$folder_dir")
-            normalized_uid=$(normalize_uid "$folder_name")
+          while IFS= read -r folder_entry; do
+            folder_name=$(echo "$folder_entry" | jq -r '.name')
+            normalized_uid=$(echo "$folder_entry" | jq -r '.normalized_uid')
 
             # Search for existing folder by exact title match
             existing_uid=$(echo "$all_folders" | jq -r \
@@ -98,34 +92,26 @@ jobs:
                 fi
               done
             fi
-          done
+          done < <(jq -c '.folders[]' "$GRAFANA_MANIFEST")
 
       - name: Push dashboards
         if: env.TEMP_DIR != ''
         run: grafanactl resources push --path "$TEMP_DIR"
 
       - name: Remote sync
+        if: env.GRAFANA_MANIFEST != ''
         env:
-          DASHBOARD_PATH: ${{ inputs.dashboard-path }}
-          REPO_NAME: ${{ github.event.repository.name }}
+          GRAFANA_MANIFEST: ${{ env.GRAFANA_MANIFEST }}
         run: |
           set -u
 
-          # NOTE: duplicated in grafana-dashboard-setup/action.yml and above in this file -- keep in sync
-          normalize_uid() {
-            echo "$1" | tr '[:upper:]' '[:lower:]' | sed 's/ /-/g; s/[^a-z0-9-]//g'
-          }
-
-          # Collect all local dashboard UIDs
+          # Build local UIDs from manifest
           declare -A local_uids
-          shopt -s nullglob
-          for folder_dir in "${DASHBOARD_PATH}"/*/; do
-            for file in "${folder_dir}"*.json; do
-              filename=$(basename "$file" .json)
-              dashboard_uid="${REPO_NAME}-$(normalize_uid "$filename")"
-              local_uids[$dashboard_uid]=1
-            done
-          done
+          while IFS= read -r uid; do
+            [ -n "$uid" ] && local_uids[$uid]=1
+          done < <(jq -r '.dashboards[].uid' "$GRAFANA_MANIFEST")
+
+          REPO_NAME=$(jq -r '.repo' "$GRAFANA_MANIFEST")
 
           # Search globally for this repo's github-ci-managed dashboards (paginated)
           page_size=1000

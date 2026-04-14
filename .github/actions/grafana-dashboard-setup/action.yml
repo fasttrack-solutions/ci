@@ -73,13 +73,24 @@ runs:
       run: |
         set -u
 
-        # NOTE: duplicated in .github/workflows/grafana-dashboard-publish.yml (x2) -- keep in sync
         normalize_uid() {
           echo "$1" | tr '[:upper:]' '[:lower:]' | sed 's/ /-/g; s/[^a-z0-9-]//g'
         }
 
+        write_empty_manifest() {
+          local manifest_file
+          manifest_file=$(mktemp)
+          jq -n --arg repo "$REPO_NAME" '{repo: $repo, dashboards: [], folders: []}' > "$manifest_file"
+          echo "GRAFANA_MANIFEST=${manifest_file}" >> "$GITHUB_ENV"
+        }
+
+        dashboard_json="[]"
+        folder_json="[]"
+        declare -A seen_folders
+
         if [ ! -d "$DASHBOARD_PATH" ]; then
           echo "No dashboards directory found at ${DASHBOARD_PATH}, nothing to process"
+          write_empty_manifest
           exit 0
         fi
 
@@ -93,6 +104,12 @@ runs:
         for folder_dir in "${DASHBOARD_PATH}"/*/; do
           folder_name=$(basename "$folder_dir")
           folder_uid=$(normalize_uid "$folder_name")
+
+          if [ -z "${seen_folders[$folder_uid]:-}" ]; then
+            folder_json=$(echo "$folder_json" | jq --arg name "$folder_name" --arg nuid "$folder_uid" \
+              '. + [{"name": $name, "normalized_uid": $nuid}]')
+            seen_folders[$folder_uid]=1
+          fi
 
           for file in "${folder_dir}"*.json; do
             filename=$(basename "$file" .json)
@@ -127,6 +144,8 @@ runs:
               ' "$file" > "${TEMP_DIR}/${dashboard_uid}.json"
 
             echo "Preprocessed: ${rel} (uid: ${dashboard_uid})"
+            dashboard_json=$(echo "$dashboard_json" | jq --arg uid "$dashboard_uid" --arg folder "$folder_uid" \
+              '. + [{"uid": $uid, "folder": $folder}]')
           done
         done
 
@@ -137,5 +156,14 @@ runs:
 
         if [ -z "$(ls -A "$TEMP_DIR" 2>/dev/null)" ]; then
           echo "No dashboard files found, nothing to process"
+          write_empty_manifest
           exit 0
         fi
+
+        GRAFANA_MANIFEST=$(mktemp)
+        jq -n --arg repo "$REPO_NAME" \
+              --argjson dashboards "$dashboard_json" \
+              --argjson folders "$folder_json" \
+              '{repo: $repo, dashboards: $dashboards, folders: $folders}' > "$GRAFANA_MANIFEST"
+        echo "GRAFANA_MANIFEST=${GRAFANA_MANIFEST}" >> "$GITHUB_ENV"
+        echo "Manifest written: $(jq -c '{dashboards: (.dashboards | length), folders: (.folders | length)}' "$GRAFANA_MANIFEST")"
