@@ -33,8 +33,13 @@ jobs:
         run: |
           for path in $(echo "$PATHS_JSON" | jq -r '.[]'); do
             echo "::group::$path"
-            (cd "$path" && terraform fmt -check .) || echo "::warning::Format issues in $path"
+            output="$(cd "$path" && terraform fmt -check . 2>&1)" && status=0 || status=$?
+            echo "$output"
             echo "::endgroup::"
+            if [ "$status" -ne 0 ]; then
+              echo "::warning::Format issues in $path"
+              echo "$output"
+            fi
           done
 
   validate:
@@ -63,19 +68,22 @@ jobs:
           go build -o ~/.terraform.d/plugins/linux_amd64/terraform-provider-kubernetes
           ls -la ~/.terraform.d/plugins/linux_amd64/
 
-      - name: Validate all paths
+      - name: Validate
         env:
           PATHS_JSON: ${{ inputs.paths }}
         run: |
           failed=""
           for path in $(echo "$PATHS_JSON" | jq -r '.[]'); do
             echo "::group::$path"
-            if ! (cd "$path" && terraform init -backend=false && terraform validate -check-variables=false); then
-              failed="$failed $path"
-            fi
+            output="$(cd "$path" && terraform init -backend=false 2>&1 && terraform validate -check-variables=false 2>&1)" && status=0 || status=$?
+            echo "$output"
             echo "::endgroup::"
+            if [ "$status" -ne 0 ]; then
+              failed="$failed $path"
+              echo "::error::$path failed validation:"
+              echo "$output" | grep -i -A2 'error'
+            fi
           done
           if [ -n "$failed" ]; then
-            echo "::error::Validation failed for:$failed"
             exit 1
           fi

@@ -43,8 +43,13 @@ jobs:
         run: |
           for path in $(echo "$PATHS_JSON" | jq -r '.[]'); do
             echo "::group::$path"
-            terraform -chdir="$path" fmt -check -recursive || echo "::warning::Format issues in $path"
+            output="$(terraform -chdir="$path" fmt -check -recursive 2>&1)" && status=0 || status=$?
+            echo "$output"
             echo "::endgroup::"
+            if [ "$status" -ne 0 ]; then
+              echo "::warning::Format issues in $path"
+              echo "$output"
+            fi
           done
 
   validate:
@@ -66,13 +71,16 @@ jobs:
           failed=""
           for path in $(echo "$PATHS_JSON" | jq -r '.[]'); do
             echo "::group::$path"
-            if ! (terraform -chdir="$path" init -backend=false && terraform -chdir="$path" validate); then
-              failed="$failed $path"
-            fi
+            output="$(terraform -chdir="$path" init -backend=false 2>&1 && terraform -chdir="$path" validate 2>&1)" && status=0 || status=$?
+            echo "$output"
             echo "::endgroup::"
+            if [ "$status" -ne 0 ]; then
+              failed="$failed $path"
+              echo "::error::$path failed validation:"
+              echo "$output" | grep -i -A2 'error'
+            fi
           done
           if [ -n "$failed" ]; then
-            echo "::error::Validation failed for:$failed"
             exit 1
           fi
 
@@ -116,13 +124,16 @@ jobs:
           failed=""
           for path in $(echo "$PATHS_JSON" | jq -r '.[]'); do
             echo "::group::$path"
-            if ! tflint --config /tmp/.tflint.hcl --chdir="$path"; then
-              failed="$failed $path"
-            fi
+            output="$(tflint --config /tmp/.tflint.hcl --chdir="$path" 2>&1)" && status=0 || status=$?
+            echo "$output"
             echo "::endgroup::"
+            if [ "$status" -ne 0 ]; then
+              failed="$failed $path"
+              echo "::error::$path has lint issues:"
+              echo "$output" | grep -i -A2 'error\|warning'
+            fi
           done
           if [ -n "$failed" ]; then
-            echo "::error::TFLint issues found in:$failed"
             exit 1
           fi
 
@@ -146,12 +157,15 @@ jobs:
           failed=""
           for path in $(echo "$PATHS_JSON" | jq -r '.[]'); do
             echo "::group::$path"
-            if ! trivy config --severity "$TRIVY_SEVERITY" --exit-code 1 "$path"; then
-              failed="$failed $path"
-            fi
+            output="$(trivy config --severity "$TRIVY_SEVERITY" --exit-code 1 "$path" 2>&1)" && status=0 || status=$?
+            echo "$output"
             echo "::endgroup::"
+            if [ "$status" -ne 0 ]; then
+              failed="$failed $path"
+              echo "::error::$path has security findings:"
+              echo "$output" | grep -i -A2 'failure\|critical\|high'
+            fi
           done
           if [ -n "$failed" ]; then
-            echo "::error::Trivy findings in:$failed"
             exit 1
           fi
