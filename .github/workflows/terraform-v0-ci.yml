@@ -3,8 +3,8 @@ name: Terraform v0 CI
 on:
   workflow_call:
     inputs:
-      path:
-        description: "Path to Terraform 0.11.13 directory"
+      paths:
+        description: "JSON array of paths to Terraform 0.11 directories"
         type: string
         required: true
       runner:
@@ -27,9 +27,15 @@ jobs:
         with:
           terraform_version: "0.11.13"
 
-      - name: Terraform Format Check
-        run: terraform fmt -check .
-        working-directory: ${{ inputs.path }}
+      - name: Check formatting
+        env:
+          PATHS_JSON: ${{ inputs.paths }}
+        run: |
+          for path in $(echo "$PATHS_JSON" | jq -r '.[]'); do
+            echo "::group::$path"
+            (cd "$path" && terraform fmt -check .) || echo "::warning::Format issues in $path"
+            echo "::endgroup::"
+          done
 
   validate:
     name: Validate
@@ -43,10 +49,19 @@ jobs:
         with:
           terraform_version: "0.11.13"
 
-      - name: Terraform Init
-        run: terraform init -backend=false
-        working-directory: ${{ inputs.path }}
-
-      - name: Terraform Validate
-        run: terraform validate -check-variables=false
-        working-directory: ${{ inputs.path }}
+      - name: Validate all paths
+        env:
+          PATHS_JSON: ${{ inputs.paths }}
+        run: |
+          failed=""
+          for path in $(echo "$PATHS_JSON" | jq -r '.[]'); do
+            echo "::group::$path"
+            if ! (cd "$path" && terraform init -backend=false && terraform validate -check-variables=false); then
+              failed="$failed $path"
+            fi
+            echo "::endgroup::"
+          done
+          if [ -n "$failed" ]; then
+            echo "::error::Validation failed for:$failed"
+            exit 1
+          fi

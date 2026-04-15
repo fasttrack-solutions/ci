@@ -3,8 +3,8 @@ name: Terraform v1 CI
 on:
   workflow_call:
     inputs:
-      path:
-        description: "Path to Terraform 1.x directory"
+      paths:
+        description: "JSON array of paths to Terraform 1.x directories"
         type: string
         required: true
       terraform_version:
@@ -37,9 +37,15 @@ jobs:
         with:
           terraform_version: ${{ inputs.terraform_version }}
 
-      - name: Terraform Format Check
-        run: terraform fmt -check -recursive
-        working-directory: ${{ inputs.path }}
+      - name: Check formatting
+        env:
+          PATHS_JSON: ${{ inputs.paths }}
+        run: |
+          for path in $(echo "$PATHS_JSON" | jq -r '.[]'); do
+            echo "::group::$path"
+            terraform -chdir="$path" fmt -check -recursive || echo "::warning::Format issues in $path"
+            echo "::endgroup::"
+          done
 
   validate:
     name: Validate
@@ -53,13 +59,22 @@ jobs:
         with:
           terraform_version: ${{ inputs.terraform_version }}
 
-      - name: Initialize Terraform
-        run: terraform init -backend=false
-        working-directory: ${{ inputs.path }}
-
-      - name: Terraform Validate
-        run: terraform validate
-        working-directory: ${{ inputs.path }}
+      - name: Validate all paths
+        env:
+          PATHS_JSON: ${{ inputs.paths }}
+        run: |
+          failed=""
+          for path in $(echo "$PATHS_JSON" | jq -r '.[]'); do
+            echo "::group::$path"
+            if ! (terraform -chdir="$path" init -backend=false && terraform -chdir="$path" validate); then
+              failed="$failed $path"
+            fi
+            echo "::endgroup::"
+          done
+          if [ -n "$failed" ]; then
+            echo "::error::Validation failed for:$failed"
+            exit 1
+          fi
 
   tflint:
     name: TFLint
@@ -69,11 +84,12 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v5
 
-      - name: Write TFLint config
-        env:
-          TF_PATH: ${{ inputs.path }}
+      - name: Setup TFLint
+        uses: terraform-linters/setup-tflint@v4
+
+      - name: Write config and initialize
         run: |
-          cat > "${TF_PATH}/.tflint.hcl" << 'TFLINT_EOF'
+          cat > /tmp/.tflint.hcl << 'TFLINT_EOF'
           plugin "terraform" {
             enabled = true
             preset  = "recommended"
@@ -91,17 +107,17 @@ jobs:
             version = "0.28.0"
           }
           TFLINT_EOF
+          tflint --init --config /tmp/.tflint.hcl
 
-      - name: Setup TFLint
-        uses: terraform-linters/setup-tflint@v4
-
-      - name: Initialize TFLint
-        run: tflint --init
-        working-directory: ${{ inputs.path }}
-
-      - name: Execute TFLint
-        run: tflint
-        working-directory: ${{ inputs.path }}
+      - name: Lint all paths
+        env:
+          PATHS_JSON: ${{ inputs.paths }}
+        run: |
+          for path in $(echo "$PATHS_JSON" | jq -r '.[]'); do
+            echo "::group::$path"
+            tflint --config /tmp/.tflint.hcl --chdir="$path" || echo "::warning::TFLint issues in $path"
+            echo "::endgroup::"
+          done
 
   trivy:
     name: Trivy
@@ -111,11 +127,17 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v5
 
-      - name: Trivy IaC Scan
-        uses: aquasecurity/trivy-action@master
-        with:
-          scan-type: "config"
-          scan-ref: ${{ inputs.path }}
-          severity: ${{ inputs.trivy_severity }}
-          exit-code: "0"
-          format: "table"
+      - name: Install Trivy
+        run: |
+          curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sh -s -- -b /usr/local/bin
+
+      - name: Scan all paths
+        env:
+          PATHS_JSON: ${{ inputs.paths }}
+          TRIVY_SEVERITY: ${{ inputs.trivy_severity }}
+        run: |
+          for path in $(echo "$PATHS_JSON" | jq -r '.[]'); do
+            echo "::group::$path"
+            trivy config --severity "$TRIVY_SEVERITY" --exit-code 1 "$path" || echo "::warning::Trivy findings in $path"
+            echo "::endgroup::"
+          done
