@@ -41,12 +41,19 @@ jobs:
         env:
           GRAFANA_MANIFEST: ${{ env.GRAFANA_MANIFEST }}
         run: |
-          set -u
+          set -euo pipefail
 
           # Fetch all existing folders once (limit=0 returns all)
-          all_folders=$(curl -s --retry 2 --retry-delay 5 --max-time 30 \
+          response=$(curl -s -w "\n%{http_code}" --retry 2 --retry-all-errors --retry-delay 5 --max-time 30 \
             -H "Authorization: Bearer ${GRAFANA_TOKEN}" \
             "${GRAFANA_SERVER}/api/folders?limit=0")
+          http_code=$(echo "$response" | tail -1)
+          all_folders=$(echo "$response" | sed '$d')
+
+          if [ "$http_code" != "200" ]; then
+            echo "::error::Failed to fetch folders (HTTP ${http_code}): ${all_folders}"
+            exit 1
+          fi
 
           while IFS= read -r folder_entry; do
             folder_name=$(echo "$folder_entry" | jq -r '.name')
@@ -55,7 +62,7 @@ jobs:
             # Search for existing folder by exact title match
             existing_uid=$(echo "$all_folders" | jq -r \
               --arg title "$folder_name" \
-              '.[] | select(.title == $title) | .uid' | head -1)
+              '[.[] | select(.title == $title) | .uid] | .[0] // empty')
 
             if [ -n "$existing_uid" ]; then
               folder_uid="$existing_uid"
@@ -64,7 +71,7 @@ jobs:
               # Create new folder with our normalized UID
               folder_uid="$normalized_uid"
               response=$(curl -s -w "\n%{http_code}" \
-                --retry 2 --retry-delay 5 --max-time 30 \
+                --retry 2 --retry-all-errors --retry-delay 5 --max-time 30 \
                 -H "Authorization: Bearer ${GRAFANA_TOKEN}" \
                 -H "Content-Type: application/json" \
                 -X POST \
@@ -103,7 +110,7 @@ jobs:
         env:
           GRAFANA_MANIFEST: ${{ env.GRAFANA_MANIFEST }}
         run: |
-          set -u
+          set -euo pipefail
 
           # Build local UIDs from manifest
           declare -A local_uids
@@ -113,15 +120,15 @@ jobs:
 
           REPO_NAME=$(jq -r '.repo' "$GRAFANA_MANIFEST")
 
-          # Search globally for this repo's github-ci-managed dashboards (paginated)
+          # Search for this repo's CI-managed dashboards by tag (paginated)
           page_size=1000
           page=1
           remote_uids=""
           while true; do
             response=$(curl -s -w "\n%{http_code}" \
-              --retry 2 --retry-delay 5 --max-time 30 \
+              --retry 2 --retry-all-errors --retry-delay 5 --max-time 30 \
               -H "Authorization: Bearer ${GRAFANA_TOKEN}" \
-              "${GRAFANA_SERVER}/api/search?tag=github-ci-managed&type=dash-db&limit=${page_size}&page=${page}")
+              "${GRAFANA_SERVER}/api/search?tag=github-ci-managed&tag=repo:${REPO_NAME}&type=dash-db&limit=${page_size}&page=${page}")
             http_code=$(echo "$response" | tail -1)
             body=$(echo "$response" | sed '$d')
 
@@ -130,9 +137,7 @@ jobs:
               exit 0
             fi
 
-            page_uids=$(echo "$body" | jq -r \
-              --arg prefix "${REPO_NAME}-" \
-              '.[] | select(.uid | startswith($prefix)) | .uid')
+            page_uids=$(echo "$body" | jq -r '.[].uid')
             remote_uids="${remote_uids}${remote_uids:+$'\n'}${page_uids}"
 
             result_count=$(echo "$body" | jq 'length')
@@ -144,11 +149,9 @@ jobs:
 
           for remote_uid in $remote_uids; do
             if [ -z "${local_uids[$remote_uid]:-}" ]; then
-              if grafanactl resources delete "dashboards/${remote_uid}" 2>/dev/null; then
-                echo "Deleted orphan: ${remote_uid}"
-              else
-                echo "::warning::Failed to delete orphan ${remote_uid}"
-              fi
+              delete_err=$(grafanactl resources delete "dashboards/${remote_uid}" 2>&1) && \
+                echo "Deleted orphan: ${remote_uid}" || \
+                echo "::warning::Failed to delete orphan ${remote_uid}: ${delete_err}"
             fi
           done
 

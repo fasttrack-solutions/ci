@@ -45,7 +45,7 @@ All dashboards must use the **Grafana v2 resource format** (Kubernetes-style). T
 }
 ```
 
-You do not need to set `metadata.name` — CI derives it automatically. You do not need to add a `github-ci-managed` tag — CI injects it.
+You do not need to set `metadata.name` — CI derives it automatically. You do not need to add `github-ci-managed` or `repo:<repo-name>` tags — CI injects them.
 
 ### How to get a v2 JSON
 
@@ -94,9 +94,11 @@ CI matches folders by **display name**, not by UID. If a folder already exists i
 
 This means dashboards published by CI land in the same folder as manually created dashboards with the same folder name.
 
+**Note:** Folder matching assumes unique titles at the root level. If multiple folders share the same title (e.g., a nested folder created manually), CI uses the first match returned by the API.
+
 ## Orphan Cleanup
 
-When a dashboard file is removed from the repo and the change is merged to main, CI automatically deletes it from Grafana. This only applies to dashboards tagged `github-ci-managed` with a UID prefixed by the repo name. Manually created dashboards are never touched.
+When a dashboard file is removed from the repo and the change is merged to main, CI automatically deletes it from Grafana. This only applies to dashboards tagged `github-ci-managed` and `repo:<repo-name>`. Manually created dashboards are never touched.
 
 **Removing all dashboard files** (or the entire `grafana/dashboards/` directory) will delete all of the repo's CI-managed dashboards from Grafana. This is intentional — the repo is the source of truth, and an empty directory means "this repo has no dashboards." Other repos' dashboards are never affected, even if they share the same Grafana instance or folder.
 
@@ -105,7 +107,7 @@ When a dashboard file is removed from the repo and the change is merged to main,
 Multiple repositories can publish dashboards to the same Grafana instance and even the same folder:
 
 - Dashboard UIDs include the repo name as a prefix, preventing collisions
-- Orphan sync only deletes dashboards belonging to the current repo
+- Each dashboard is tagged with `repo:<repo-name>`, so orphan sync only deletes dashboards belonging to the current repo
 - Folder creation is idempotent
 
 ## Known Behaviors

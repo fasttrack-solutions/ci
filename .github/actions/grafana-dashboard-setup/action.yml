@@ -15,6 +15,10 @@ inputs:
     description: Pinned grafanactl release version
     required: false
     default: "v0.1.9"
+  grafanactl-checksum:
+    description: SHA256 checksum of the grafanactl tarball (optional, skipped if empty)
+    required: false
+    default: ""
   dashboard-path:
     description: Path to dashboards directory relative to repo root
     required: false
@@ -30,6 +34,7 @@ runs:
         GRAFANA_STACK_ID: ${{ inputs.grafana-stack-id }}
         GRAFANA_TOKEN: ${{ inputs.grafana-token }}
       run: |
+        set -euo pipefail
         missing=()
         [ -z "$GRAFANA_SERVER" ] && missing+=("grafana-server")
         [ -z "$GRAFANA_STACK_ID" ] && missing+=("grafana-stack-id")
@@ -46,9 +51,16 @@ runs:
         GRAFANA_STACK_ID: ${{ inputs.grafana-stack-id }}
         GRAFANA_TOKEN: ${{ inputs.grafana-token }}
         GRAFANACTL_VERSION: ${{ inputs.grafanactl-version }}
+        GRAFANACTL_CHECKSUM: ${{ inputs.grafanactl-checksum }}
       run: |
-        curl --fail -L -o grafanactl.tar.gz \
+        set -euo pipefail
+        curl --fail --retry 2 --retry-all-errors --retry-delay 5 -L -o grafanactl.tar.gz \
           "https://github.com/grafana/grafanactl/releases/download/${GRAFANACTL_VERSION}/grafanactl_Linux_x86_64.tar.gz"
+
+        if [ -n "$GRAFANACTL_CHECKSUM" ]; then
+          echo "${GRAFANACTL_CHECKSUM}  grafanactl.tar.gz" | sha256sum -c -
+        fi
+
         tar -xzf grafanactl.tar.gz
         chmod +x grafanactl
         sudo mv grafanactl /usr/local/bin/grafanactl
@@ -64,6 +76,7 @@ runs:
               stack-id: ${STACK_ID_NUM}
               token: ${GRAFANA_TOKEN}
         EOF
+        chmod 600 ~/.config/grafanactl/config.yaml
 
     - name: Pre-check and preprocess dashboards
       shell: bash
@@ -71,10 +84,17 @@ runs:
         DASHBOARD_PATH: ${{ inputs.dashboard-path }}
         REPO_NAME: ${{ github.event.repository.name }}
       run: |
-        set -u
+        set -uo pipefail
 
         normalize_uid() {
-          echo "$1" | tr '[:upper:]' '[:lower:]' | sed 's/ /-/g; s/[^a-z0-9-]//g'
+          local result
+          result=$(echo "$1" | tr '[:upper:]' '[:lower:]' \
+            | sed 's/ /-/g; s/[^a-z0-9-]//g; s/-\+/-/g; s/^-//; s/-$//')
+          if [ -z "$result" ]; then
+            echo "::error::normalize_uid produced empty result from input: '$1'" >&2
+            return 1
+          fi
+          echo "$result"
         }
 
         write_empty_manifest() {
@@ -95,12 +115,24 @@ runs:
         fi
 
         TEMP_DIR=$(mktemp -d)
-        echo "TEMP_DIR=${TEMP_DIR}" >> "$GITHUB_ENV"
 
         error_count=0
         declare -A seen_filenames
 
         shopt -s nullglob
+
+        # Error on root-level JSON files (must be in a subfolder)
+        for root_file in "${DASHBOARD_PATH}"/*.json; do
+          echo "::error file=${root_file}::Dashboard files must be in a subfolder, not at the root of ${DASHBOARD_PATH}"
+          error_count=$((error_count + 1))
+        done
+
+        # Error on deeply nested JSON files (only one level of subfolder allowed)
+        while IFS= read -r deep_file; do
+          echo "::error file=${deep_file}::Dashboard files must be in exactly one subfolder, not nested deeper"
+          error_count=$((error_count + 1))
+        done < <(find "$DASHBOARD_PATH" -mindepth 3 -type f -name '*.json' 2>/dev/null)
+
         for folder_dir in "${DASHBOARD_PATH}"/*/; do
           folder_name=$(basename "$folder_dir")
           folder_uid=$(normalize_uid "$folder_name")
@@ -135,10 +167,11 @@ runs:
             # Preprocess: inject UID, github-ci-managed tag, folder annotation, strip server metadata
             jq --arg name "$dashboard_uid" \
                --arg folder "$folder_uid" \
+               --arg repo "repo:${REPO_NAME}" \
               '
                 .metadata.name = $name |
                 .metadata.annotations["grafana.app/folder"] = $folder |
-                .spec.tags = ((.spec.tags // []) + ["github-ci-managed"] | unique) |
+                .spec.tags = ((.spec.tags // []) + ["github-ci-managed", $repo] | unique) |
                 del(.metadata.resourceVersion, .metadata.uid, .metadata.namespace,
                     .metadata.generation, .metadata.creationTimestamp)
               ' "$file" > "${TEMP_DIR}/${dashboard_uid}.json"
@@ -156,9 +189,12 @@ runs:
 
         if [ -z "$(ls -A "$TEMP_DIR" 2>/dev/null)" ]; then
           echo "No dashboard files found, nothing to process"
+          rm -rf "$TEMP_DIR"
           write_empty_manifest
           exit 0
         fi
+
+        echo "TEMP_DIR=${TEMP_DIR}" >> "$GITHUB_ENV"
 
         GRAFANA_MANIFEST=$(mktemp)
         jq -n --arg repo "$REPO_NAME" \
