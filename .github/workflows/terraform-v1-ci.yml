@@ -47,8 +47,7 @@ jobs:
             echo "$output"
             echo "::endgroup::"
             if [ "$status" -ne 0 ]; then
-              echo "::warning::Format issues in $path"
-              echo "$output"
+              echo "::warning::$path format issues"
             fi
           done
 
@@ -64,7 +63,7 @@ jobs:
         with:
           terraform_version: ${{ inputs.terraform_version }}
 
-      - name: Validate all paths
+      - name: Validate
         env:
           PATHS_JSON: ${{ inputs.paths }}
         run: |
@@ -76,8 +75,7 @@ jobs:
             echo "::endgroup::"
             if [ "$status" -ne 0 ]; then
               failed="$failed $path"
-              echo "::error::$path failed validation:"
-              echo "$output" | grep -i -A2 'error'
+              echo "::error::$path validation failed"
             fi
           done
           if [ -n "$failed" ]; then
@@ -117,7 +115,7 @@ jobs:
           TFLINT_EOF
           tflint --init --config /tmp/.tflint.hcl
 
-      - name: Lint all paths
+      - name: Lint
         env:
           PATHS_JSON: ${{ inputs.paths }}
         run: |
@@ -129,8 +127,7 @@ jobs:
             echo "::endgroup::"
             if [ "$status" -ne 0 ]; then
               failed="$failed $path"
-              echo "::error::$path has lint issues:"
-              echo "$output" | grep -i -A2 'error\|warning'
+              echo "::error::$path has lint issues"
             fi
           done
           if [ -n "$failed" ]; then
@@ -162,8 +159,7 @@ jobs:
             echo "::endgroup::"
             if [ "$status" -ne 0 ]; then
               failed="$failed $path"
-              echo "::error::$path has security findings:"
-              echo "$output" | grep -i -A2 'failure\|critical\|high'
+              echo "::error::$path has security findings"
             fi
           done
           if [ -n "$failed" ]; then

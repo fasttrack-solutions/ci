@@ -37,8 +37,7 @@ jobs:
             echo "$output"
             echo "::endgroup::"
             if [ "$status" -ne 0 ]; then
-              echo "::warning::Format issues in $path"
-              echo "$output"
+              echo "::warning::$path format issues"
             fi
           done
 
@@ -80,8 +79,7 @@ jobs:
             echo "::endgroup::"
             if [ "$status" -ne 0 ]; then
               failed="$failed $path"
-              echo "::error::$path failed validation:"
-              echo "$output" | grep -i -A2 'error'
+              echo "::error::$path validation failed"
             fi
           done
           if [ -n "$failed" ]; then
