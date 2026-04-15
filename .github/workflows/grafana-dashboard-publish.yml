@@ -1,0 +1,158 @@
+name: Grafana Dashboard Publish
+
+on:
+  workflow_call:
+    inputs:
+      dashboard-path:
+        required: false
+        type: string
+        default: "grafana/dashboards"
+      grafanactl-version:
+        required: false
+        type: string
+        default: "v0.1.9"
+    secrets:
+      GRAFANA_SERVER:
+        required: true
+      GRAFANA_STACK_ID:
+        required: true
+      GRAFANA_TOKEN:
+        required: true
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    env:
+      GRAFANA_SERVER: ${{ secrets.GRAFANA_SERVER }}
+      GRAFANA_TOKEN: ${{ secrets.GRAFANA_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: fasttrack-solutions/ci/.github/actions/grafana-dashboard-setup@main
+        with:
+          grafana-server: ${{ secrets.GRAFANA_SERVER }}
+          grafana-stack-id: ${{ secrets.GRAFANA_STACK_ID }}
+          grafana-token: ${{ secrets.GRAFANA_TOKEN }}
+          grafanactl-version: ${{ inputs.grafanactl-version }}
+          dashboard-path: ${{ inputs.dashboard-path }}
+
+      - name: Resolve and ensure remote folders exist
+        if: env.TEMP_DIR != ''
+        env:
+          GRAFANA_MANIFEST: ${{ env.GRAFANA_MANIFEST }}
+        run: |
+          set -euo pipefail
+
+          # Fetch all existing folders once (limit=0 returns all)
+          response=$(curl -s -w "\n%{http_code}" --retry 2 --retry-all-errors --retry-delay 5 --max-time 30 \
+            -H "Authorization: Bearer ${GRAFANA_TOKEN}" \
+            "${GRAFANA_SERVER}/api/folders?limit=0")
+          http_code=$(echo "$response" | tail -1)
+          all_folders=$(echo "$response" | sed '$d')
+
+          if [ "$http_code" != "200" ]; then
+            echo "::error::Failed to fetch folders (HTTP ${http_code}): ${all_folders}"
+            exit 1
+          fi
+
+          while IFS= read -r folder_entry; do
+            folder_name=$(echo "$folder_entry" | jq -r '.name')
+            normalized_uid=$(echo "$folder_entry" | jq -r '.normalized_uid')
+
+            # Search for existing folder by exact title match
+            existing_uid=$(echo "$all_folders" | jq -r \
+              --arg title "$folder_name" \
+              '[.[] | select(.title == $title) | .uid] | .[0] // empty')
+
+            if [ -n "$existing_uid" ]; then
+              folder_uid="$existing_uid"
+              echo "Found existing folder: ${folder_name} (uid: ${folder_uid})"
+            else
+              # Create new folder with our normalized UID
+              folder_uid="$normalized_uid"
+              response=$(curl -s -w "\n%{http_code}" \
+                --retry 2 --retry-all-errors --retry-delay 5 --max-time 30 \
+                -H "Authorization: Bearer ${GRAFANA_TOKEN}" \
+                -H "Content-Type: application/json" \
+                -X POST \
+                -d "$(jq -n --arg uid "$folder_uid" --arg title "$folder_name" '{uid: $uid, title: $title}')" \
+                "${GRAFANA_SERVER}/api/folders")
+              http_code=$(echo "$response" | tail -1)
+
+              if [ "$http_code" != "200" ] && [ "$http_code" != "409" ]; then
+                echo "::error::Failed to create folder '${folder_name}': $(echo "$response" | sed '$d')"
+                exit 1
+              fi
+              echo "Created folder: ${folder_name} (uid: ${folder_uid})"
+            fi
+
+            # Update preprocessed files: replace placeholder folder UID with resolved one
+            if [ "$folder_uid" != "$normalized_uid" ]; then
+              for preprocessed_file in "${TEMP_DIR}"/*.json; do
+                current_folder=$(jq -r '.metadata.annotations["grafana.app/folder"]' "$preprocessed_file")
+                if [ "$current_folder" = "$normalized_uid" ]; then
+                  jq --arg folder "$folder_uid" \
+                    '.metadata.annotations["grafana.app/folder"] = $folder' \
+                    "$preprocessed_file" > "${preprocessed_file}.tmp" && \
+                    mv "${preprocessed_file}.tmp" "$preprocessed_file"
+                  echo "  Updated folder annotation in $(basename "$preprocessed_file"): ${normalized_uid} -> ${folder_uid}"
+                fi
+              done
+            fi
+          done < <(jq -c '.folders[]' "$GRAFANA_MANIFEST")
+
+      - name: Push dashboards
+        if: env.TEMP_DIR != ''
+        run: grafanactl resources push --path "$TEMP_DIR"
+
+      - name: Remote sync
+        if: env.GRAFANA_MANIFEST != ''
+        env:
+          GRAFANA_MANIFEST: ${{ env.GRAFANA_MANIFEST }}
+        run: |
+          set -euo pipefail
+
+          # Build local UIDs from manifest
+          declare -A local_uids
+          while IFS= read -r uid; do
+            [ -n "$uid" ] && local_uids[$uid]=1
+          done < <(jq -r '.dashboards[].uid' "$GRAFANA_MANIFEST")
+
+          REPO_NAME=$(jq -r '.repo' "$GRAFANA_MANIFEST")
+
+          # Search for this repo's CI-managed dashboards by tag (paginated)
+          page_size=1000
+          page=1
+          remote_uids=""
+          while true; do
+            response=$(curl -s -w "\n%{http_code}" \
+              --retry 2 --retry-all-errors --retry-delay 5 --max-time 30 \
+              -H "Authorization: Bearer ${GRAFANA_TOKEN}" \
+              "${GRAFANA_SERVER}/api/search?tag=github-ci-managed&tag=repo:${REPO_NAME}&type=dash-db&limit=${page_size}&page=${page}")
+            http_code=$(echo "$response" | tail -1)
+            body=$(echo "$response" | sed '$d')
+
+            if [ "$http_code" != "200" ]; then
+              echo "::warning::Failed to list dashboards for sync (page ${page}): ${body}"
+              exit 0
+            fi
+
+            page_uids=$(echo "$body" | jq -r '.[].uid')
+            remote_uids="${remote_uids}${remote_uids:+$'\n'}${page_uids}"
+
+            result_count=$(echo "$body" | jq 'length')
+            if [ "$result_count" -lt "$page_size" ]; then
+              break
+            fi
+            page=$((page + 1))
+          done
+
+          for remote_uid in $remote_uids; do
+            if [ -z "${local_uids[$remote_uid]:-}" ]; then
+              delete_err=$(grafanactl resources delete "dashboards/${remote_uid}" 2>&1) && \
+                echo "Deleted orphan: ${remote_uid}" || \
+                echo "::warning::Failed to delete orphan ${remote_uid}: ${delete_err}"
+            fi
+          done
+
+          echo "Sync complete"

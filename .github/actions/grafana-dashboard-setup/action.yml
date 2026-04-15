@@ -1,0 +1,205 @@
+name: Grafana Dashboard Setup
+description: Install grafanactl, pre-check dashboard files (v2 format, duplicates), and preprocess for validate/push
+
+inputs:
+  grafana-server:
+    description: Grafana instance URL
+    required: true
+  grafana-stack-id:
+    description: Grafana Cloud stack ID (e.g. stacks-1212286 or 1212286)
+    required: true
+  grafana-token:
+    description: Grafana service account token
+    required: true
+  grafanactl-version:
+    description: Pinned grafanactl release version
+    required: false
+    default: "v0.1.9"
+  grafanactl-checksum:
+    description: SHA256 checksum of the grafanactl tarball (optional, skipped if empty)
+    required: false
+    default: "b66e7f1b5b7b871c43be240d0247c353021433f407c9fbeabdcbee3c71b41271"
+  dashboard-path:
+    description: Path to dashboards directory relative to repo root
+    required: false
+    default: "grafana/dashboards"
+
+runs:
+  using: composite
+  steps:
+    - name: Check required configuration
+      shell: bash
+      env:
+        GRAFANA_SERVER: ${{ inputs.grafana-server }}
+        GRAFANA_STACK_ID: ${{ inputs.grafana-stack-id }}
+        GRAFANA_TOKEN: ${{ inputs.grafana-token }}
+      run: |
+        set -euo pipefail
+        missing=()
+        [ -z "$GRAFANA_SERVER" ] && missing+=("grafana-server")
+        [ -z "$GRAFANA_STACK_ID" ] && missing+=("grafana-stack-id")
+        [ -z "$GRAFANA_TOKEN" ] && missing+=("grafana-token")
+        if [ ${#missing[@]} -gt 0 ]; then
+          echo "::error::Missing required inputs: ${missing[*]}"
+          exit 1
+        fi
+
+    - name: Install and configure grafanactl
+      shell: bash
+      env:
+        GRAFANA_SERVER: ${{ inputs.grafana-server }}
+        GRAFANA_STACK_ID: ${{ inputs.grafana-stack-id }}
+        GRAFANA_TOKEN: ${{ inputs.grafana-token }}
+        GRAFANACTL_VERSION: ${{ inputs.grafanactl-version }}
+        GRAFANACTL_CHECKSUM: ${{ inputs.grafanactl-checksum }}
+      run: |
+        set -euo pipefail
+        curl --fail --retry 2 --retry-all-errors --retry-delay 5 -L -o grafanactl.tar.gz \
+          "https://github.com/grafana/grafanactl/releases/download/${GRAFANACTL_VERSION}/grafanactl_Linux_x86_64.tar.gz"
+
+        if [ -n "$GRAFANACTL_CHECKSUM" ]; then
+          echo "${GRAFANACTL_CHECKSUM}  grafanactl.tar.gz" | sha256sum -c -
+        fi
+
+        tar -xzf grafanactl.tar.gz
+        chmod +x grafanactl
+        sudo mv grafanactl /usr/local/bin/grafanactl
+        grafanactl --version
+
+        STACK_ID_NUM=$(echo "$GRAFANA_STACK_ID" | sed 's/^stacks-//')
+        mkdir -p ~/.config/grafanactl
+        cat > ~/.config/grafanactl/config.yaml << EOF
+        contexts:
+          default:
+            grafana:
+              server: ${GRAFANA_SERVER}
+              stack-id: ${STACK_ID_NUM}
+              token: ${GRAFANA_TOKEN}
+        EOF
+        chmod 600 ~/.config/grafanactl/config.yaml
+
+    - name: Pre-check and preprocess dashboards
+      shell: bash
+      env:
+        DASHBOARD_PATH: ${{ inputs.dashboard-path }}
+        REPO_NAME: ${{ github.event.repository.name }}
+      run: |
+        set -uo pipefail
+
+        normalize_uid() {
+          local result
+          result=$(echo "$1" | tr '[:upper:]' '[:lower:]' \
+            | sed 's/ /-/g; s/[^a-z0-9-]//g; s/-\+/-/g; s/^-//; s/-$//')
+          if [ -z "$result" ]; then
+            echo "::error::normalize_uid produced empty result from input: '$1'" >&2
+            return 1
+          fi
+          echo "$result"
+        }
+
+        write_empty_manifest() {
+          local manifest_file
+          manifest_file=$(mktemp)
+          jq -n --arg repo "$REPO_NAME" '{repo: $repo, dashboards: [], folders: []}' > "$manifest_file"
+          echo "GRAFANA_MANIFEST=${manifest_file}" >> "$GITHUB_ENV"
+        }
+
+        dashboard_json="[]"
+        folder_json="[]"
+        declare -A seen_folders
+
+        if [ ! -d "$DASHBOARD_PATH" ]; then
+          echo "No dashboards directory found at ${DASHBOARD_PATH}, nothing to process"
+          write_empty_manifest
+          exit 0
+        fi
+
+        TEMP_DIR=$(mktemp -d)
+
+        error_count=0
+        declare -A seen_filenames
+
+        shopt -s nullglob
+
+        # Error on root-level JSON files (must be in a subfolder)
+        for root_file in "${DASHBOARD_PATH}"/*.json; do
+          echo "::error file=${root_file}::Dashboard files must be in a subfolder, not at the root of ${DASHBOARD_PATH}"
+          error_count=$((error_count + 1))
+        done
+
+        # Error on deeply nested JSON files (only one level of subfolder allowed)
+        while IFS= read -r deep_file; do
+          echo "::error file=${deep_file}::Dashboard files must be in exactly one subfolder, not nested deeper"
+          error_count=$((error_count + 1))
+        done < <(find "$DASHBOARD_PATH" -mindepth 3 -type f -name '*.json' 2>/dev/null)
+
+        for folder_dir in "${DASHBOARD_PATH}"/*/; do
+          folder_name=$(basename "$folder_dir")
+          folder_uid=$(normalize_uid "$folder_name")
+
+          if [ -z "${seen_folders[$folder_uid]:-}" ]; then
+            folder_json=$(echo "$folder_json" | jq --arg name "$folder_name" --arg nuid "$folder_uid" \
+              '. + [{"name": $name, "normalized_uid": $nuid}]')
+            seen_folders[$folder_uid]=1
+          fi
+
+          for file in "${folder_dir}"*.json; do
+            filename=$(basename "$file" .json)
+            rel="${file#${DASHBOARD_PATH}/}"
+
+            # Verify v2 format
+            api_version=$(jq -r '.apiVersion // empty' "$file")
+            if [ "$api_version" != "dashboard.grafana.app/v2" ]; then
+              echo "::error file=${file}::Must use apiVersion 'dashboard.grafana.app/v2', found '${api_version:-none}'"
+              error_count=$((error_count + 1))
+              continue
+            fi
+
+            # Check duplicate filenames across folders
+            dashboard_uid="${REPO_NAME}-$(normalize_uid "$filename")"
+            if [ -n "${seen_filenames[$dashboard_uid]:-}" ]; then
+              echo "::error file=${file}::Duplicate filename '${filename}.json' (also in ${seen_filenames[$dashboard_uid]})"
+              error_count=$((error_count + 1))
+              continue
+            fi
+            seen_filenames[$dashboard_uid]="$rel"
+
+            # Preprocess: inject UID, github-ci-managed tag, folder annotation, strip server metadata
+            jq --arg name "$dashboard_uid" \
+               --arg folder "$folder_uid" \
+               --arg repo "repo:${REPO_NAME}" \
+              '
+                .metadata.name = $name |
+                .metadata.annotations["grafana.app/folder"] = $folder |
+                .spec.tags = ((.spec.tags // []) + ["github-ci-managed", $repo] | unique) |
+                del(.metadata.resourceVersion, .metadata.uid, .metadata.namespace,
+                    .metadata.generation, .metadata.creationTimestamp)
+              ' "$file" > "${TEMP_DIR}/${dashboard_uid}.json"
+
+            echo "Preprocessed: ${rel} (uid: ${dashboard_uid})"
+            dashboard_json=$(echo "$dashboard_json" | jq --arg uid "$dashboard_uid" --arg folder "$folder_uid" \
+              '. + [{"uid": $uid, "folder": $folder}]')
+          done
+        done
+
+        if [ "$error_count" -gt 0 ]; then
+          echo "::error::Pre-check failed with ${error_count} error(s)"
+          exit 1
+        fi
+
+        if [ -z "$(ls -A "$TEMP_DIR" 2>/dev/null)" ]; then
+          echo "No dashboard files found, nothing to process"
+          rm -rf "$TEMP_DIR"
+          write_empty_manifest
+          exit 0
+        fi
+
+        echo "TEMP_DIR=${TEMP_DIR}" >> "$GITHUB_ENV"
+
+        GRAFANA_MANIFEST=$(mktemp)
+        jq -n --arg repo "$REPO_NAME" \
+              --argjson dashboards "$dashboard_json" \
+              --argjson folders "$folder_json" \
+              '{repo: $repo, dashboards: $dashboards, folders: $folders}' > "$GRAFANA_MANIFEST"
+        echo "GRAFANA_MANIFEST=${GRAFANA_MANIFEST}" >> "$GITHUB_ENV"
+        echo "Manifest written: $(jq -c '{dashboards: (.dashboards | length), folders: (.folders | length)}' "$GRAFANA_MANIFEST")"
