@@ -14,7 +14,7 @@ on:
         default: "ubuntu-latest"
 
 jobs:
-  fmt:
+  format:
     name: Format Check
     runs-on: ${{ inputs.runner }}
     continue-on-error: true
@@ -58,7 +58,7 @@ jobs:
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
         with:
-          terraform_version: "0.11.13"
+          terraform_version: "0.11.15"
 
       - name: Build pinned Kubernetes Terraform provider
         run: |

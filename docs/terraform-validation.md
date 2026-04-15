@@ -42,6 +42,7 @@ Add to your repo's CI workflow file (e.g. `.github/workflows/ci.yml`):
 jobs:
   terraform-v0:
     uses: fasttrack-solutions/ci/.github/workflows/terraform-v0-ci.yml@main
+    secrets: inherit
     with:
       paths: '["deployments/oneclick/terraform"]'
 
@@ -130,11 +131,15 @@ The CI is designed to give clear visual feedback in the GitHub Actions UI:
 
 **Format** checks that `.tf` files follow the canonical formatting. The v1 workflow checks recursively into subdirectories; v0 only checks the top-level directory (Terraform 0.11 limitation).
 
-**Validate** runs `terraform init -backend=false` (no remote state needed) followed by `terraform validate`. This catches syntax errors, missing required arguments, invalid resource configurations, and type mismatches. The v0 workflow uses `-check-variables=false` because 0.11 variables are provided at apply time via tfvars.
+**Validate** runs `terraform init -backend=false` (no remote state needed) followed by `terraform validate`. This catches syntax errors, missing required arguments, invalid resource configurations, and type mismatches. The v0 workflow uses `-check-variables=false` because 0.11 variables are provided at apply time via tfvars. The v0 validate job also builds a pinned Kubernetes Terraform provider from source (`fasttrack-solutions/terraform-provider-kubernetes`) to resolve a custom provider dependency used in legacy deployments — this requires `secrets: inherit` on the caller side for repository access.
 
 **TFLint** (v1 only) runs the terraform, AWS, and Google linting rulesets. It catches issues like deprecated syntax, naming conventions, and provider-specific best practices. Repos not using AWS or Google providers simply won't trigger those rules.
 
 **Trivy** (v1 only) scans for IaC security misconfigurations — exposed ports, overly permissive IAM policies, unencrypted resources, etc. Only HIGH and CRITICAL severity findings are reported by default (configurable via `trivy_severity`).
+
+## Secrets
+
+The v0 workflow clones a private repository (`fasttrack-solutions/terraform-provider-kubernetes`) during validation. Callers must pass `secrets: inherit` so the workflow has access to `GITHUB_TOKEN` for cross-repo cloning. The v1 workflow does not require any secrets.
 
 ## Determining Your Terraform Version
 
