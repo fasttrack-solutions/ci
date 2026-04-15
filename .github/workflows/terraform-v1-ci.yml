@@ -1,0 +1,121 @@
+name: Terraform v1 CI
+
+on:
+  workflow_call:
+    inputs:
+      path:
+        description: "Path to Terraform 1.x directory"
+        type: string
+        required: true
+      terraform_version:
+        description: "Terraform version to install"
+        type: string
+        required: false
+        default: "1.5.0"
+      trivy_severity:
+        description: "Trivy severity threshold"
+        type: string
+        required: false
+        default: "HIGH,CRITICAL"
+      runner:
+        description: "Runner to use"
+        type: string
+        required: false
+        default: "ubuntu-latest"
+
+jobs:
+  format:
+    name: Format Check
+    runs-on: ${{ inputs.runner }}
+    continue-on-error: true
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ inputs.terraform_version }}
+
+      - name: Terraform Format Check
+        run: terraform fmt -check -recursive
+        working-directory: ${{ inputs.path }}
+
+  validate:
+    name: Validate
+    runs-on: ${{ inputs.runner }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ inputs.terraform_version }}
+
+      - name: Initialize Terraform
+        run: terraform init -backend=false
+        working-directory: ${{ inputs.path }}
+
+      - name: Terraform Validate
+        run: terraform validate
+        working-directory: ${{ inputs.path }}
+
+  tflint:
+    name: TFLint
+    runs-on: ${{ inputs.runner }}
+    continue-on-error: true
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Write TFLint config
+        env:
+          TF_PATH: ${{ inputs.path }}
+        run: |
+          cat > "${TF_PATH}/.tflint.hcl" << 'TFLINT_EOF'
+          plugin "terraform" {
+            enabled = true
+            preset  = "recommended"
+          }
+
+          plugin "aws" {
+            enabled = true
+            source  = "github.com/terraform-linters/tflint-ruleset-aws"
+            version = "0.30.0"
+          }
+
+          plugin "google" {
+            enabled = true
+            source  = "github.com/terraform-linters/tflint-ruleset-google"
+            version = "0.28.0"
+          }
+          TFLINT_EOF
+
+      - name: Setup TFLint
+        uses: terraform-linters/setup-tflint@v4
+
+      - name: Initialize TFLint
+        run: tflint --init
+        working-directory: ${{ inputs.path }}
+
+      - name: Execute TFLint
+        run: tflint
+        working-directory: ${{ inputs.path }}
+
+  trivy:
+    name: Trivy
+    runs-on: ${{ inputs.runner }}
+    continue-on-error: true
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Trivy IaC Scan
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: "config"
+          scan-ref: ${{ inputs.path }}
+          severity: ${{ inputs.trivy_severity }}
+          exit-code: "0"
+          format: "table"

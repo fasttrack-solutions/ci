@@ -1,0 +1,52 @@
+name: Terraform v0 CI
+
+on:
+  workflow_call:
+    inputs:
+      path:
+        description: "Path to Terraform 0.11.13 directory"
+        type: string
+        required: true
+      runner:
+        description: "Runner to use"
+        type: string
+        required: false
+        default: "ubuntu-latest"
+
+jobs:
+  fmt:
+    name: Format Check
+    runs-on: ${{ inputs.runner }}
+    continue-on-error: true
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "0.11.13"
+
+      - name: Terraform Format Check
+        run: terraform fmt -check .
+        working-directory: ${{ inputs.path }}
+
+  validate:
+    name: Validate
+    runs-on: ${{ inputs.runner }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "0.11.13"
+
+      - name: Terraform Init
+        run: terraform init -backend=false
+        working-directory: ${{ inputs.path }}
+
+      - name: Terraform Validate
+        run: terraform validate -check-variables=false
+        working-directory: ${{ inputs.path }}
