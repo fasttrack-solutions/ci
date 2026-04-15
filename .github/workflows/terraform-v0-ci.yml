@@ -44,10 +44,24 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v5
 
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "~1.25"
+          cache: false
+
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
         with:
           terraform_version: "0.11.13"
+
+      - name: Build terraform-provider-kubernetes
+        run: |
+          git clone https://github.com/fasttrack-solutions/terraform-provider-kubernetes /tmp/terraform-provider-kubernetes
+          cd /tmp/terraform-provider-kubernetes
+          make build
+          mkdir -p ~/.terraform.d/plugins/
+          find "$GOPATH/bin" /tmp/terraform-provider-kubernetes -maxdepth 6 -type f -name 'terraform-provider-kubernetes*' 2>/dev/null | head -n 1 | xargs -I{} install -m 0755 {} ~/.terraform.d/plugins/terraform-provider-kubernetes
 
       - name: Validate all paths
         env:
