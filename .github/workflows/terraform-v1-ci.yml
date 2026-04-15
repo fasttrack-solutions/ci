@@ -113,11 +113,18 @@ jobs:
         env:
           PATHS_JSON: ${{ inputs.paths }}
         run: |
+          failed=""
           for path in $(echo "$PATHS_JSON" | jq -r '.[]'); do
             echo "::group::$path"
-            tflint --config /tmp/.tflint.hcl --chdir="$path" || echo "::warning::TFLint issues in $path"
+            if ! tflint --config /tmp/.tflint.hcl --chdir="$path"; then
+              failed="$failed $path"
+            fi
             echo "::endgroup::"
           done
+          if [ -n "$failed" ]; then
+            echo "::error::TFLint issues found in:$failed"
+            exit 1
+          fi
 
   trivy:
     name: Trivy
@@ -136,8 +143,15 @@ jobs:
           PATHS_JSON: ${{ inputs.paths }}
           TRIVY_SEVERITY: ${{ inputs.trivy_severity }}
         run: |
+          failed=""
           for path in $(echo "$PATHS_JSON" | jq -r '.[]'); do
             echo "::group::$path"
-            trivy config --severity "$TRIVY_SEVERITY" --exit-code 1 "$path" || echo "::warning::Trivy findings in $path"
+            if ! trivy config --severity "$TRIVY_SEVERITY" --exit-code 1 "$path"; then
+              failed="$failed $path"
+            fi
             echo "::endgroup::"
           done
+          if [ -n "$failed" ]; then
+            echo "::error::Trivy findings in:$failed"
+            exit 1
+          fi
