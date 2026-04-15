@@ -55,13 +55,17 @@ jobs:
         with:
           terraform_version: "0.11.13"
 
-      - name: Build terraform-provider-kubernetes
+      - name: Build pinned Terraform providers
         run: |
           git clone https://github.com/fasttrack-solutions/terraform-provider-kubernetes /tmp/terraform-provider-kubernetes
           cd /tmp/terraform-provider-kubernetes
           make build
-          mkdir -p ~/.terraform.d/plugins/
-          find "$GOPATH/bin" /tmp/terraform-provider-kubernetes -maxdepth 6 -type f -name 'terraform-provider-kubernetes*' 2>/dev/null | head -n 1 | xargs -I{} install -m 0755 {} ~/.terraform.d/plugins/terraform-provider-kubernetes
+          mkdir -p ~/.terraform.d/plugins/linux_amd64/
+          p="$(find "$GOPATH/bin" /tmp/terraform-provider-kubernetes -maxdepth 6 -type f -name 'terraform-provider-kubernetes*' 2>/dev/null | head -n 1)"
+          if [ -z "$p" ]; then echo "ERROR: terraform-provider-kubernetes binary not found after build" && exit 1; fi
+          install -m 0755 "$p" ~/.terraform.d/plugins/linux_amd64/terraform-provider-kubernetes
+          echo "Installed provider from $p"
+          ls -la ~/.terraform.d/plugins/linux_amd64/
 
       - name: Validate all paths
         env:
