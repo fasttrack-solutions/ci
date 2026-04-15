@@ -1,0 +1,87 @@
+name: Terraform v0 CI
+
+on:
+  workflow_call:
+    inputs:
+      paths:
+        description: "JSON array of paths to Terraform 0.11 directories"
+        type: string
+        required: true
+      runner:
+        description: "Runner to use"
+        type: string
+        required: false
+        default: "ubuntu-latest"
+
+jobs:
+  format:
+    name: Format Check
+    runs-on: ${{ inputs.runner }}
+    continue-on-error: true
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "0.11.15"
+
+      - name: Check formatting
+        env:
+          PATHS_JSON: ${{ inputs.paths }}
+        run: |
+          for path in $(echo "$PATHS_JSON" | jq -r '.[]'); do
+            echo "::group::$path"
+            output="$(cd "$path" && terraform fmt -check . 2>&1)" && status=0 || status=$?
+            echo "$output"
+            echo "::endgroup::"
+            if [ "$status" -ne 0 ]; then
+              echo "::warning::$path format issues"
+            fi
+          done
+
+  validate:
+    name: Validate
+    runs-on: ${{ inputs.runner }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "~1.25"
+          cache: false
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "0.11.15"
+
+      - name: Build pinned Kubernetes Terraform provider
+        run: |
+          mkdir -p ~/.terraform.d/plugins/linux_amd64/
+          git clone https://github.com/fasttrack-solutions/terraform-provider-kubernetes /tmp/terraform-provider-kubernetes
+          cd /tmp/terraform-provider-kubernetes
+          go build -o ~/.terraform.d/plugins/linux_amd64/terraform-provider-kubernetes
+          ls -la ~/.terraform.d/plugins/linux_amd64/
+
+      - name: Validate
+        env:
+          PATHS_JSON: ${{ inputs.paths }}
+        run: |
+          failed=""
+          for path in $(echo "$PATHS_JSON" | jq -r '.[]'); do
+            echo "::group::$path"
+            output="$(cd "$path" && terraform init -backend=false 2>&1 && terraform validate -check-variables=false 2>&1)" && status=0 || status=$?
+            echo "$output"
+            echo "::endgroup::"
+            if [ "$status" -ne 0 ]; then
+              failed="$failed $path"
+              echo "::error::$path validation failed"
+            fi
+          done
+          if [ -n "$failed" ]; then
+            exit 1
+          fi

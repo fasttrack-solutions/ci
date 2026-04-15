@@ -1,0 +1,167 @@
+name: Terraform v1 CI
+
+on:
+  workflow_call:
+    inputs:
+      paths:
+        description: "JSON array of paths to Terraform 1.x directories"
+        type: string
+        required: true
+      terraform_version:
+        description: "Terraform version to install"
+        type: string
+        required: false
+        default: "1.5.0"
+      trivy_severity:
+        description: "Trivy severity threshold"
+        type: string
+        required: false
+        default: "HIGH,CRITICAL"
+      runner:
+        description: "Runner to use"
+        type: string
+        required: false
+        default: "ubuntu-latest"
+
+jobs:
+  format:
+    name: Format Check
+    runs-on: ${{ inputs.runner }}
+    continue-on-error: true
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ inputs.terraform_version }}
+
+      - name: Check formatting
+        env:
+          PATHS_JSON: ${{ inputs.paths }}
+        run: |
+          for path in $(echo "$PATHS_JSON" | jq -r '.[]'); do
+            echo "::group::$path"
+            output="$(terraform -chdir="$path" fmt -check -recursive 2>&1)" && status=0 || status=$?
+            echo "$output"
+            echo "::endgroup::"
+            if [ "$status" -ne 0 ]; then
+              echo "::warning::$path format issues"
+            fi
+          done
+
+  validate:
+    name: Validate
+    runs-on: ${{ inputs.runner }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ inputs.terraform_version }}
+
+      - name: Validate
+        env:
+          PATHS_JSON: ${{ inputs.paths }}
+        run: |
+          failed=""
+          for path in $(echo "$PATHS_JSON" | jq -r '.[]'); do
+            echo "::group::$path"
+            output="$(terraform -chdir="$path" init -backend=false 2>&1 && terraform -chdir="$path" validate 2>&1)" && status=0 || status=$?
+            echo "$output"
+            echo "::endgroup::"
+            if [ "$status" -ne 0 ]; then
+              failed="$failed $path"
+              echo "::error::$path validation failed"
+            fi
+          done
+          if [ -n "$failed" ]; then
+            exit 1
+          fi
+
+  tflint:
+    name: TFLint
+    runs-on: ${{ inputs.runner }}
+    continue-on-error: true
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup TFLint
+        uses: terraform-linters/setup-tflint@v4
+
+      - name: Write config and initialize
+        run: |
+          cat > /tmp/.tflint.hcl << 'TFLINT_EOF'
+          plugin "terraform" {
+            enabled = true
+            preset  = "recommended"
+          }
+
+          plugin "aws" {
+            enabled = true
+            source  = "github.com/terraform-linters/tflint-ruleset-aws"
+            version = "0.30.0"
+          }
+
+          plugin "google" {
+            enabled = true
+            source  = "github.com/terraform-linters/tflint-ruleset-google"
+            version = "0.28.0"
+          }
+          TFLINT_EOF
+          tflint --init --config /tmp/.tflint.hcl
+
+      - name: Lint
+        env:
+          PATHS_JSON: ${{ inputs.paths }}
+        run: |
+          failed=""
+          for path in $(echo "$PATHS_JSON" | jq -r '.[]'); do
+            echo "::group::$path"
+            output="$(tflint --config /tmp/.tflint.hcl --chdir="$path" 2>&1)" && status=0 || status=$?
+            echo "$output"
+            echo "::endgroup::"
+            if [ "$status" -ne 0 ]; then
+              failed="$failed $path"
+              echo "::error::$path has lint issues"
+            fi
+          done
+          if [ -n "$failed" ]; then
+            exit 1
+          fi
+
+  trivy:
+    name: Trivy
+    runs-on: ${{ inputs.runner }}
+    continue-on-error: true
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Install Trivy
+        run: |
+          curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sh -s -- -b /usr/local/bin v0.69.3
+
+      - name: Scan all paths
+        env:
+          PATHS_JSON: ${{ inputs.paths }}
+          TRIVY_SEVERITY: ${{ inputs.trivy_severity }}
+        run: |
+          failed=""
+          for path in $(echo "$PATHS_JSON" | jq -r '.[]'); do
+            echo "::group::$path"
+            output="$(trivy config --severity "$TRIVY_SEVERITY" --exit-code 1 "$path" 2>&1)" && status=0 || status=$?
+            echo "$output"
+            echo "::endgroup::"
+            if [ "$status" -ne 0 ]; then
+              failed="$failed $path"
+              echo "::error::$path has security findings"
+            fi
+          done
+          if [ -n "$failed" ]; then
+            exit 1
+          fi
