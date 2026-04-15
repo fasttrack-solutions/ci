@@ -18,7 +18,7 @@ inputs:
   grafanactl-checksum:
     description: SHA256 checksum of the grafanactl tarball (optional, skipped if empty)
     required: false
-    default: ""
+    default: "b66e7f1b5b7b871c43be240d0247c353021433f407c9fbeabdcbee3c71b41271"
   dashboard-path:
     description: Path to dashboards directory relative to repo root
     required: false
