@@ -25,7 +25,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: fasttrack-solutions/ci/.github/actions/grafana-dashboard-setup@main
+      - uses: fasttrack-solutions/ci/.github/actions/grafana-dashboard-setup@feat/grafana-dashboard-publishing
         with:
           grafana-server: ${{ secrets.GRAFANA_SERVER }}
           grafana-stack-id: ${{ secrets.GRAFANA_STACK_ID }}
