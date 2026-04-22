@@ -135,8 +135,8 @@ runs:
           tags: ${{ steps.login-ecr.outputs.registry }}/${{inputs.image}}:${{inputs.tag-prefix}}oneclick-${{ env.BUILD_NUMBER }}-${{ steps.platform.outputs.arch }}
           file: ${{inputs.dockerfile}}
           build-args: ${{ inputs.build-args }}
-          cache-from: type=gha,scope=${{ inputs.image }}-${{ steps.platform.outputs.suffix }}
-          cache-to: type=gha,scope=${{ inputs.image }}-${{ steps.platform.outputs.suffix }},mode=max
+          cache-from: type=gha,scope=${{ inputs.image }}-${{ inputs.tag-prefix }}${{ steps.platform.outputs.suffix }}
+          cache-to:   type=gha,scope=${{ inputs.image }}-${{ inputs.tag-prefix }}${{ steps.platform.outputs.suffix }},mode=max
     - name: Build and push PR
       if: (github.ref != 'refs/heads/master' || github.ref != 'refs/heads/main') && steps.findPr.outputs.number > 0
       uses: docker/build-push-action@v6
