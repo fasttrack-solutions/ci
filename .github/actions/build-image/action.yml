@@ -76,12 +76,12 @@ runs:
     - name: Login to Amazon ECR
       uses: aws-actions/amazon-ecr-login@v2
       id: login-ecr  
-    - uses: actions/checkout@v5
+    - uses: actions/checkout@v6
       if: inputs.git_fetch_submodules == 'true'
       with:
         submodules: recursive
         ssh-key: ${{ inputs.ssh_key }}    
-    - uses: actions/checkout@v5
+    - uses: actions/checkout@v6
       if: inputs.git_fetch_submodules != 'true'      
     - name: Install SSH Key
       # You may pin to the exact commit or the version.
