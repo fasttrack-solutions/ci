@@ -126,6 +126,15 @@ runs:
         echo "Successfully pushed manifest: ${MANIFEST_IMAGE}"
         docker manifest inspect "${MANIFEST_IMAGE}"
 
+    - name: Comment oneclick PR tag
+      if: github.event_name == 'pull_request' && steps.findPr.outputs.number > 0 && inputs.github_token != ''
+      uses: marocchino/sticky-pull-request-comment@v2
+      with:
+        GITHUB_TOKEN: ${{ inputs.github_token }}
+        header: "OneClick PR tag - ${{ inputs.image }}${{ inputs.tag-prefix != '' && format('-{0}', inputs.tag-prefix) || '' }}"
+        message: |
+          Your build has the image tag: `${{ inputs.tag-prefix }}oneclickpr-${{ steps.findPr.outputs.pr }}-${{ env.BUILD_NUMBER }}` :sparkles:
+
     - name: Create and push latest manifest
       if: inputs.latest_tag == 'true'
       shell: bash
