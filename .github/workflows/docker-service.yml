@@ -52,6 +52,20 @@ on:
       DOCKERHUB_PULL_TOKEN:
         required: true        
 
+# GitHub Enterprise migration set the org-default GITHUB_TOKEN permissions to
+# "restricted" (contents: read only). Reusable workflows cannot elevate beyond
+# the caller, so we grant explicitly here:
+#   - contents:       actions/checkout
+#   - pull-requests:  docker-service.yml/create-manifest declares it
+#   - checks:         dorny/test-reporter in golang-ci.yml
+#   - id-token:       OIDC for any auth path that uses it
+#   - packages:       safe default if anything pushes to ghcr.io (we use ECR)
+permissions:
+  contents: read
+  pull-requests: write
+  checks: write
+  id-token: write
+  packages: write
 
 jobs:
   build-service:
