@@ -65,6 +65,10 @@ jobs:
 
   build:
     runs-on: ${{ inputs.runner }}
+    permissions:
+      contents: read
+      checks: write
+      pull-requests: write
     steps:
     - uses: actions/checkout@v5
 
