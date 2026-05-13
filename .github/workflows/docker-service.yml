@@ -61,7 +61,7 @@ on:
 #   - id-token:       OIDC for any auth path that uses it
 #   - packages:       safe default if anything pushes to ghcr.io (we use ECR)
 permissions:
-  contents: read
+  contents: write
   pull-requests: write
   checks: write
   id-token: write
