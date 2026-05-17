@@ -69,12 +69,12 @@ outputs:
 runs:
   using: "composite"
   steps:
-    - uses: actions/checkout@v5
+    - uses: actions/checkout@v6
       if: inputs.git_fetch_submodules == 'true'
       with:
         submodules: recursive
         ssh-key: ${{ inputs.ssh_key }}
-    - uses: actions/checkout@v5
+    - uses: actions/checkout@v6
       if: inputs.git_fetch_submodules != 'true'
     - name: Install SSH Key
       # You may pin to the exact commit or the version.
