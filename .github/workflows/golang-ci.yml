@@ -66,16 +66,16 @@ jobs:
   build:
     runs-on: ${{ inputs.runner }}
     steps:
-    - uses: actions/checkout@v5
+    - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
     - name: Docker Hub login
-      uses: docker/login-action@v3
+      uses: docker/login-action@4907a6ddec9925e35a0a9e82d7399ccc52663121 # v4.1.0
       with:
         username: ${{ inputs.dockerhub_username }}
         password: ${{ secrets.DOCKERHUB_PULL_TOKEN }}
 
     - name: DHI registry login
-      uses: docker/login-action@v3
+      uses: docker/login-action@4907a6ddec9925e35a0a9e82d7399ccc52663121 # v4.1.0
       with:
         registry: dhi.io
         username: ${{ inputs.dockerhub_username }}
@@ -83,7 +83,7 @@ jobs:
 
     - name: Load Docker cache
       if: always()
-      uses: actions/cache@v4
+      uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
       with:
         path: /tmp/docker-cache
         key: docker-cache-${{ runner.os }}-${{ github.ref_name }}-${{ github.sha }}
@@ -118,19 +118,19 @@ jobs:
           libvips libvips-dev       
 
     - name: Install SSH Key
-      uses: shimataro/ssh-key-action@v2.3.1
+      uses: shimataro/ssh-key-action@87a8f067114a8ce263df83e9ed5c849953548bc3 # v2.8.1
       with:
         key: ${{ secrets.FT_SSH_KEY }}
         known_hosts: ${{ secrets.FT_BITBUCKET_KNOWN_HOSTS }}
     - name: Setup Golang with cache
       id: golang-with-cache    
-      uses: magnetikonline/action-golang-cache@v5
+      uses: magnetikonline/action-golang-cache@fcca93e25c7fe3943de4d40c22d255d17f63e63b # v5
       with:
        go-version: ${{ inputs.go-version }}
 
     - name: Setup Python with cache
       if: inputs.python_pip_install == true
-      uses: actions/setup-python@v5
+      uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
       with:
         python-version: ${{ inputs.python-version }}
         cache: 'pip'
@@ -143,7 +143,7 @@ jobs:
 
     - name: Install pkl
       if: inputs.pkl_install == true
-      uses: pkl-community/setup-pkl@v0
+      uses: pkl-community/setup-pkl@a862c198115338598d769aaf03f5fa8c5123036e # v0
       with:
         pkl-version: 0.25.2
 
@@ -163,7 +163,7 @@ jobs:
       run: mkdir test-reports
 
     - name: Cache Go tools
-      uses: actions/cache@v4
+      uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
       with:
         path: ~/go/bin
         key: go-tools-${{ runner.os }}-gotestsum-v1.12.3
@@ -178,7 +178,7 @@ jobs:
       run: MYSQL_VERSION=${{ inputs.go-test-mysql-version }} gotestsum --junitfile test-reports/report.xml -- -timeout ${{ inputs.go-test-timeout }} -parallel=5 -covermode=atomic -coverprofile=cover.out ${{ inputs.go-test-tags && format('-tags={0}', inputs.go-test-tags) || '' }} ./...
 
     - name: Test Report
-      uses: dorny/test-reporter@v1
+      uses: dorny/test-reporter@a43b3a5f7366b97d083190328d2c652e1a8b6aa2 # v3.0.0
       if: success() || failure()    # run this step even if previous step failed
       with:
         name: Unit tests            # Name of the check run which will be created
@@ -186,12 +186,12 @@ jobs:
         reporter: java-junit
     - name: Upload coverage reports to Codecov
       continue-on-error: true
-      uses: codecov/codecov-action@v5
+      uses: codecov/codecov-action@e79a6962e0d4c0c17b229090214935d2e33f8354 # v6.0.1
       env:
         CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
     - name: Save Golang cache
       if: always()
-      uses: actions/cache/save@v4
+      uses: actions/cache/save@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
       with:
         path: |
           ${{ steps.golang-with-cache.outputs.build-cache-path }}
@@ -200,7 +200,7 @@ jobs:
 
     - name: Save Docker cache
       if: always()
-      uses: actions/cache/save@v4
+      uses: actions/cache/save@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
       with:
         path: /tmp/docker-cache
         key: docker-cache-${{ runner.os }}-${{ github.ref_name }}-${{ github.sha }}
