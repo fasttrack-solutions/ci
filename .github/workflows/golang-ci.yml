@@ -143,7 +143,7 @@ jobs:
 
     - name: Install pkl
       if: inputs.pkl_install == true
-      uses: pkl-community/setup-pkl@a862c198115338598d769aaf03f5fa8c5123036e # v0
+      uses: pkl-community/setup-pkl@a862c198115338598d769aaf03f5fa8c5123036e # v0.0.8
       with:
         pkl-version: 0.25.2
 
