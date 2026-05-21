@@ -56,9 +56,10 @@ jobs:
           key: ${{ secrets.FT_SSH_KEY }}
           known_hosts: ${{ secrets.FT_BITBUCKET_KNOWN_HOSTS }}
 
-      - name: Setup Golang with cache
-        uses: magnetikonline/action-golang-cache@fcca93e25c7fe3943de4d40c22d255d17f63e63b # v5
+      - name: Setup Golang
+        uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v6.4.0
         with:
+          cache: true
           go-version: ${{ inputs.go-version }}
 
       - id: govulncheck
@@ -103,9 +104,10 @@ jobs:
           key: ${{ secrets.FT_SSH_KEY }}
           known_hosts: ${{ secrets.FT_BITBUCKET_KNOWN_HOSTS }}
 
-      - name: Setup Golang with cache
-        uses: magnetikonline/action-golang-cache@fcca93e25c7fe3943de4d40c22d255d17f63e63b # v5
+      - name: Setup Golang
+        uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v6.4.0
         with:
+          cache: true
           go-version: ${{ inputs.go-version }}
 
       - name: Cache Go security tools
