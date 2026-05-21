@@ -72,7 +72,7 @@ jobs:
     runs-on: ${{ matrix.runner }}
     steps:
     - name: Build & Publish
-      uses: fasttrack-solutions/ci/.github/actions/build-publish-docker@e166cf41fc22288f48e2d6000db290e981d2986f # main
+      uses: fasttrack-solutions/ci/.github/actions/build-publish-docker@0cbc311b90656a1837322ac9d5fe19a3c043700a # main
       with:
         image: ${{ inputs.image }}
         tag-prefix: ${{ inputs.tag-prefix-service }}
@@ -95,7 +95,7 @@ jobs:
     runs-on: ${{ matrix.runner }}
     steps:
     - name: Build & Publish
-      uses: fasttrack-solutions/ci/.github/actions/build-publish-docker@e166cf41fc22288f48e2d6000db290e981d2986f # main
+      uses: fasttrack-solutions/ci/.github/actions/build-publish-docker@0cbc311b90656a1837322ac9d5fe19a3c043700a # main
       with:
         image: ${{ inputs.image }}
         tag-prefix: ${{ inputs.tag-prefix-api }}
@@ -115,7 +115,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Create multi-arch manifest for service
-        uses: fasttrack-solutions/ci/.github/actions/create-manifest@e166cf41fc22288f48e2d6000db290e981d2986f # main
+        uses: fasttrack-solutions/ci/.github/actions/create-manifest@0cbc311b90656a1837322ac9d5fe19a3c043700a # main
         with:
           image: ${{ inputs.image }}
           start-build-from: ${{ inputs.start-build-from }}
@@ -131,7 +131,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Create multi-arch manifest for API
-        uses: fasttrack-solutions/ci/.github/actions/create-manifest@e166cf41fc22288f48e2d6000db290e981d2986f # main
+        uses: fasttrack-solutions/ci/.github/actions/create-manifest@0cbc311b90656a1837322ac9d5fe19a3c043700a # main
         with:
           image: ${{ inputs.image }}
           start-build-from: ${{ inputs.start-build-from }}
