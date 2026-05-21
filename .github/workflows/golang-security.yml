@@ -63,7 +63,7 @@ jobs:
           go-version: ${{ inputs.go-version }}
 
       - id: govulncheck
-        uses: golang/govulncheck-action@b625fbe08f3bccbe446d94fbf87fcc875a4f50ee # v1.0.4
+        uses: golang/govulncheck-action@31f7c5463448f83528bd771c2d978d940080c9fd # master (post-v1.0.4 SHA-pinning fix; no release tag yet)
         with:
            go-version-input: ${{ inputs.go-version }}
            go-package: ./...
