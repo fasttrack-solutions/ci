@@ -67,6 +67,10 @@ permissions:
   id-token: write
   packages: write
 
+concurrency:
+  group: ${{ github.workflow }}-${{ inputs.image }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   build-service:
     name: ${{ matrix.platform == 'linux/arm64' && 'build-service-arm64' || 'build-service' }}

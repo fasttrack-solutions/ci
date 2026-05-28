@@ -18,6 +18,10 @@ on:
       token:
         required: true
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   bump-version:
     runs-on: ubuntu-latest

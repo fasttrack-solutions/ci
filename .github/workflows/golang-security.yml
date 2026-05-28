@@ -19,6 +19,11 @@ on:
         required: true
       FT_BITBUCKET_KNOWN_HOSTS:
         required: true
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   govulncheck:
     runs-on: ubuntu-latest
