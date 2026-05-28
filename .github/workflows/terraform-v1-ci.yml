@@ -24,7 +24,7 @@ on:
         default: "ubuntu-latest"
 
 concurrency:
-  group: ${{ github.workflow }}-${{ inputs.paths }}-${{ github.ref }}
+  group: ${{ github.workflow }}-${{ github.ref }}-${{ inputs.paths }}-${{ inputs.terraform_version }}-${{ inputs.trivy_severity }}-${{ inputs.runner }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:

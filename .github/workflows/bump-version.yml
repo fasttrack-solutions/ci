@@ -19,7 +19,7 @@ on:
         required: true
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  group: ${{ github.workflow }}-${{ github.ref }}-${{ inputs.start-build-from }}-${{ inputs.is-library }}-${{ inputs.create-release }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:

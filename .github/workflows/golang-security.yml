@@ -21,7 +21,7 @@ on:
         required: true
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  group: ${{ github.workflow }}-${{ github.ref }}-${{ inputs.go-version }}-${{ inputs.enable-vips }}-${{ inputs.go-sec-ignore-folders }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:

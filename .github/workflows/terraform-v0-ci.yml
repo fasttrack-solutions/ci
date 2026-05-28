@@ -14,7 +14,7 @@ on:
         default: "ubuntu-latest"
 
 concurrency:
-  group: ${{ github.workflow }}-${{ inputs.paths }}-${{ github.ref }}
+  group: ${{ github.workflow }}-${{ github.ref }}-${{ inputs.paths }}-${{ inputs.runner }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:

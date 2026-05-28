@@ -64,7 +64,7 @@ permissions:
   packages: write
 
 concurrency:
-  group: ${{ github.workflow }}-${{ inputs.image }}-${{ github.ref }}
+  group: ${{ github.workflow }}-${{ github.ref }}-${{ inputs.image }}-${{ inputs.tag-prefix-service }}-${{ inputs.tag-prefix-api }}-${{ inputs.dockerfile-service }}-${{ inputs.dockerfile-api }}-${{ inputs.start-build-from }}-${{ inputs.dockerhub_username }}-${{ inputs.multi_arch }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:

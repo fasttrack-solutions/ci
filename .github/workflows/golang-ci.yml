@@ -62,7 +62,7 @@ on:
         required: true
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  group: ${{ github.workflow }}-${{ github.ref }}-${{ inputs.go-version }}-${{ inputs.go-skip-build }}-${{ inputs.go-test-timeout }}-${{ inputs.go-test-mysql-version }}-${{ inputs.enable-vips }}-${{ inputs.python-version }}-${{ inputs.python_pip_install }}-${{ inputs.pkl_install }}-${{ inputs.runner }}-${{ inputs.go-test-tags }}-${{ inputs.dockerhub_username }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
