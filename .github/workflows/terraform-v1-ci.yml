@@ -23,8 +23,12 @@ on:
         required: false
         default: "ubuntu-latest"
 
+# `inputs.paths` is intentionally excluded from the group key: it can be a
+# long JSON array and would push the rendered group past GitHub's 400-char
+# cap. If a caller ever needs to invoke this workflow multiple times in one
+# run with different `paths`, add a dedicated discriminator input.
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}-${{ inputs.paths }}-${{ inputs.terraform_version }}-${{ inputs.trivy_severity }}-${{ inputs.runner }}
+  group: ${{ github.workflow }}-${{ github.ref }}-${{ inputs.terraform_version }}-${{ inputs.trivy_severity }}-${{ inputs.runner }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
