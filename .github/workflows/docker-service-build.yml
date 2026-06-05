@@ -72,7 +72,7 @@ jobs:
     runs-on: ${{ matrix.runner }}
     steps:
     - name: Build & Publish
-      uses: fasttrack-solutions/ci/.github/actions/build-image@0cbc311b90656a1837322ac9d5fe19a3c043700a # main
+      uses: fasttrack-solutions/ci/.github/actions/build-image@f11f6b2f3661031113fe96b888c4ac66a954fd87 # main
       with:
         image: ${{ inputs.image }}
         tag-prefix: ${{ inputs.tag-prefix }}
