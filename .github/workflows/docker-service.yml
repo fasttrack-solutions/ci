@@ -101,6 +101,7 @@ jobs:
     permissions:
       contents: read
       pull-requests: write
+      id-token: write # create-manifest assumes the ECR OIDC role (ci#86)
     steps:
       - name: Create multi-arch manifest
         uses: fasttrack-solutions/ci/.github/actions/create-manifest@f11f6b2f3661031113fe96b888c4ac66a954fd87 # main
