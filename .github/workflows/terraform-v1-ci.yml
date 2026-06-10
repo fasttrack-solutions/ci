@@ -23,6 +23,14 @@ on:
         required: false
         default: "ubuntu-latest"
 
+# Including the full `inputs.paths` JSON array would push the rendered group
+# past GitHub's 400-char cap (a real caller has 23 modules → ~700 chars).
+# Use the first path as a discriminator instead: short, and naturally unique
+# across multi-environment callers (e.g. `tf-prod` vs `tf-staging`).
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}-${{ fromJSON(inputs.paths)[0] }}-${{ inputs.terraform_version }}-${{ inputs.trivy_severity }}-${{ inputs.runner }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   format:
     name: Format Check

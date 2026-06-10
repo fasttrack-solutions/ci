@@ -19,6 +19,10 @@ on:
       GRAFANA_TOKEN:
         required: true
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}-${{ inputs.dashboard-path }}-${{ inputs.grafanactl-version }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   validate:
     runs-on: ubuntu-latest

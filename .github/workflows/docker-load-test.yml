@@ -46,6 +46,10 @@ on:
 env:
   docker-load-tester-container-name: ${{ inputs.docker-project-name }}-${{ inputs.docker-load-tester-service-name }}-1
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}-${{ inputs.runner-group }}-${{ inputs.runner-labels }}-${{ inputs.docker-project-name }}-${{ inputs.docker-compose-filepath }}-${{ inputs.docker-load-tester-service-name }}-${{ inputs.docker-service-name }}-${{ inputs.docker-container-report-path }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   load-test:
     runs-on:

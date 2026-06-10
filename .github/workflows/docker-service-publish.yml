@@ -63,6 +63,10 @@ permissions:
   id-token: write
   packages: write
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}-${{ inputs.image }}-${{ inputs.tag-prefix }}-${{ inputs.dockerfile }}-${{ inputs.build-args }}-${{ inputs.start-build-from }}-${{ inputs.git_fetch_submodules }}-${{ inputs.dockerhub_username }}-${{ inputs.multi_arch }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   create-manifest:
     runs-on: ubuntu-latest
