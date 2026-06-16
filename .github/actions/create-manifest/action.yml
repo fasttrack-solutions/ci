@@ -139,18 +139,22 @@ runs:
         echo "Successfully pushed manifest: ${MANIFEST_IMAGE}"
         docker manifest inspect "${MANIFEST_IMAGE}"
 
-    - name: Compute comment label
+    - name: Prepare OneClick PR comment fields
       if: github.event_name == 'pull_request' && steps.findPr.outputs.number > 0 && inputs.github_token != ''
       shell: bash
       env:
         IMAGE: ${{ inputs.image }}
         PREFIX: ${{ inputs.tag-prefix }}
       run: |
+        # Human-friendly service label: tag-prefix "api-" -> "api"; fall back to
+        # the image name for single-image repos.
         if [[ -n "$PREFIX" ]]; then
           echo "SERVICE_LABEL=${PREFIX%-}" >> "$GITHUB_ENV"
         else
           echo "SERVICE_LABEL=$IMAGE" >> "$GITHUB_ENV"
         fi
+        # Runners are UTC; render the "updated at" stamp in CEST for readability.
+        echo "COMMENT_TIMESTAMP=$(TZ='Europe/Stockholm' date '+%Y-%m-%d %H:%M:%S')" >> "$GITHUB_ENV"
 
     - name: Comment OneClick PR image
       if: github.event_name == 'pull_request' && steps.findPr.outputs.number > 0 && inputs.github_token != ''
@@ -159,11 +163,12 @@ runs:
         GITHUB_TOKEN: ${{ inputs.github_token }}
         header: "OneClick PR tag - ${{ inputs.image }}${{ inputs.tag-prefix != '' && format('-{0}', inputs.tag-prefix) || '' }}"
         message: |
-          ## 🚀 OneClick PR image — ${{ env.SERVICE_LABEL }}
+          #### 🚀 OneClick PR image - ${{ env.SERVICE_LABEL }}
+          ```yml
+          ${{ inputs.tag-prefix }}oneclickpr-${{ steps.findPr.outputs.pr }}-${{ env.BUILD_NUMBER }}
+          ```
 
-          Latest build for this PR:
-
-          `${{ inputs.tag-prefix }}oneclickpr-${{ steps.findPr.outputs.pr }}-${{ env.BUILD_NUMBER }}`
+          Updated at `${{ env.COMMENT_TIMESTAMP }}` from [CI run](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}?pr=${{ steps.findPr.outputs.number }}).
 
     - name: Create and push latest manifest
       if: inputs.latest_tag == 'true'
