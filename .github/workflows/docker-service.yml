@@ -108,7 +108,7 @@ jobs:
       id-token: write # create-manifest assumes the ECR OIDC role (ci#86)
     steps:
       - name: Create multi-arch manifest
-        uses: fasttrack-solutions/ci/.github/actions/create-manifest@32f1442a4eb6dbf5de88fb6674fca943a656c224 # comment fix (#88); re-pin to main HEAD on merge
+        uses: fasttrack-solutions/ci/.github/actions/create-manifest@f11f6b2f3661031113fe96b888c4ac66a954fd87 # main
         with:
           image: ${{ inputs.image }}
           start-build-from: ${{ inputs.start-build-from }}
