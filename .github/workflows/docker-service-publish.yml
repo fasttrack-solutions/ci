@@ -72,7 +72,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - name: Create multi-arch manifest
-      uses: fasttrack-solutions/ci/.github/actions/create-manifest@f11f6b2f3661031113fe96b888c4ac66a954fd87 # main
+      uses: fasttrack-solutions/ci/.github/actions/create-manifest@ec023cb1c0618399f01248e8c313d35557a11d15 # main
       with:
         image: ${{ inputs.image }}
         tag-prefix: ${{ inputs.tag-prefix }}
