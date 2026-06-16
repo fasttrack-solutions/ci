@@ -139,14 +139,32 @@ runs:
         echo "Successfully pushed manifest: ${MANIFEST_IMAGE}"
         docker manifest inspect "${MANIFEST_IMAGE}"
 
-    - name: Comment oneclick PR tag
+    - name: Prepare OneClick PR comment fields
+      if: github.event_name == 'pull_request' && steps.findPr.outputs.number > 0 && inputs.github_token != ''
+      shell: bash
+      env:
+        IMAGE: ${{ inputs.image }}
+        PREFIX: ${{ inputs.tag-prefix }}
+      run: |
+        if [[ -n "$PREFIX" ]]; then
+          echo "SERVICE_LABEL=${PREFIX%-}" >> "$GITHUB_ENV"
+        else
+          echo "SERVICE_LABEL=$IMAGE" >> "$GITHUB_ENV"
+        fi
+        echo "COMMENT_TIMESTAMP=$(TZ='Europe/Stockholm' date '+%Y-%m-%d %H:%M:%S')" >> "$GITHUB_ENV"
+
+    - name: Comment OneClick PR image
       if: github.event_name == 'pull_request' && steps.findPr.outputs.number > 0 && inputs.github_token != ''
       uses: marocchino/sticky-pull-request-comment@0ea0beb66eb9baf113663a64ec522f60e49231c0 # v3.0.4
       with:
         GITHUB_TOKEN: ${{ inputs.github_token }}
         header: "OneClick PR tag - ${{ inputs.image }}${{ inputs.tag-prefix != '' && format('-{0}', inputs.tag-prefix) || '' }}"
         message: |
-          Your build has the image tag: `${{ inputs.tag-prefix }}oneclickpr-${{ steps.findPr.outputs.pr }}-${{ env.BUILD_NUMBER }}` :sparkles:
+          #### 🚀 OneClick PR image - ${{ env.SERVICE_LABEL }}
+          ```yml
+          ${{ inputs.tag-prefix }}oneclickpr-${{ steps.findPr.outputs.pr }}-${{ env.BUILD_NUMBER }}
+          ```
+          Updated at `${{ env.COMMENT_TIMESTAMP }}` from [CI run](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}?pr=${{ steps.findPr.outputs.number }}).
 
     - name: Create and push latest manifest
       if: inputs.latest_tag == 'true'
