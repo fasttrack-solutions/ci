@@ -3,7 +3,7 @@ on:
   workflow_call:
     inputs:
       go-version:
-        required: true
+        required: false
         type: string
         default: "~1.18"
       enable-vips:
@@ -14,6 +14,10 @@ on:
         required: false
         type: string
         default: ""
+      govulncheck-version:
+        required: false
+        type: string
+        default: "v1.3.0"
     secrets:
       FT_SSH_KEY:
         required: true
@@ -21,7 +25,7 @@ on:
         required: true
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}-${{ inputs.go-version }}-${{ inputs.enable-vips }}-${{ inputs.go-sec-ignore-folders }}
+  group: ${{ github.workflow }}-${{ github.ref }}-${{ inputs.go-version }}-${{ inputs.enable-vips }}-${{ inputs.go-sec-ignore-folders }}-${{ inputs.govulncheck-version }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
@@ -67,11 +71,15 @@ jobs:
           cache: true
           go-version: ${{ inputs.go-version }}
 
+      - name: Install govulncheck
+        run: go install golang.org/x/vuln/cmd/govulncheck@${{ inputs.govulncheck-version }}
+        env:
+          GOOS: ''
+          GOARCH: ''
+
       - id: govulncheck
-        uses: golang/govulncheck-action@31f7c5463448f83528bd771c2d978d940080c9fd # master (post-v1.0.4 SHA-pinning fix; no release tag yet)
-        with:
-           go-version-input: ${{ inputs.go-version }}
-           go-package: ./...
+        name: Run govulncheck
+        run: govulncheck -C . -format text ./...
 
   gosec:
     runs-on: ubuntu-latest
