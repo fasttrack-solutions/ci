@@ -4,7 +4,7 @@ on:
   workflow_call:
     inputs:
       e2e_repo:
-        description: "Repo that receives the repository_dispatch and runs the suites"
+        description: "Repo that runs the suites (receives the workflow_dispatch)"
         required: false
         type: string
         default: fasttrack-solutions/e2e
@@ -15,7 +15,7 @@ on:
         default: run e2e
     secrets:
       E2E_DISPATCH_TOKEN:
-        description: "PAT/App token authorized to POST repository_dispatch to e2e_repo"
+        description: "PAT/App token authorized to dispatch workflows in e2e_repo (needs actions:write)"
         required: true
 
 permissions: {}
@@ -62,25 +62,82 @@ jobs:
           echo "head_ref=$(echo "$DATA" | jq -r .head.ref)" >> "$GITHUB_OUTPUT"
           echo "head_sha=$(echo "$DATA" | jq -r .head.sha)" >> "$GITHUB_OUTPUT"
 
+      - name: Resolve e2e ref
+        id: e2e
+        env:
+          DISPATCH_TOKEN: ${{ secrets.E2E_DISPATCH_TOKEN }}
+          CALLER_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          E2E_REPO: ${{ inputs.e2e_repo }}
+          SERVICE_REPO: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.issue.number }}
+          COMMENT_BODY: ${{ github.event.comment.body }}
+        run: |
+          set -euo pipefail
+
+          fail() {
+            GH_TOKEN="$CALLER_TOKEN" gh pr comment "$PR_NUMBER" --repo "$SERVICE_REPO" --body "$1"
+            echo "::error::${1}"
+            exit 1
+          }
+
+          REF="main"
+          SRC="default (main)"
+
+          PR_URL=$(printf '%s' "$COMMENT_BODY" | grep -oiE "github\.com/${E2E_REPO}/pull/[0-9]+" | head -n1 || true)
+          PR_HASH=$(printf '%s' "$COMMENT_BODY" | grep -oiE 'e2e#[0-9]+' | head -n1 || true)
+          BR_TOK=$(printf '%s' "$COMMENT_BODY" | grep -oE 'e2e[@=][A-Za-z0-9._/-]+' | head -n1 || true)
+
+          if [ -n "$PR_URL" ] || [ -n "$PR_HASH" ]; then
+            if [ -n "$PR_URL" ]; then E2E_PR="${PR_URL##*/}"; else E2E_PR="${PR_HASH##*#}"; fi
+            DATA=$(GH_TOKEN="$DISPATCH_TOKEN" gh api "repos/${E2E_REPO}/pulls/${E2E_PR}" 2>/dev/null) \
+              || fail "❌ Could not find e2e PR #${E2E_PR} in \`${E2E_REPO}\`."
+            HEAD_REPO=$(echo "$DATA" | jq -r .head.repo.full_name)
+            if [ "$HEAD_REPO" != "$E2E_REPO" ]; then
+              fail "❌ e2e PR #${E2E_PR} is from a fork (\`${HEAD_REPO}\`); only branches in \`${E2E_REPO}\` can be dispatched."
+            fi
+            REF=$(echo "$DATA" | jq -r .head.ref)
+            SRC="e2e PR #${E2E_PR} (branch \`${REF}\`)"
+          elif [ -n "$BR_TOK" ]; then
+            REF="${BR_TOK#e2e?}"
+            GH_TOKEN="$DISPATCH_TOKEN" gh api "repos/${E2E_REPO}/branches/${REF}" >/dev/null 2>&1 \
+              || fail "❌ Branch \`${REF}\` does not exist in \`${E2E_REPO}\`."
+            SRC="branch \`${REF}\`"
+          fi
+
+          echo "ref=$REF" >> "$GITHUB_OUTPUT"
+          echo "source=$SRC" >> "$GITHUB_OUTPUT"
+          echo "Will run e2e from: $SRC"
+
       - name: Trigger E2E in the e2e repo
         env:
           GH_TOKEN: ${{ secrets.E2E_DISPATCH_TOKEN }}
+          CALLER_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           E2E_REPO: ${{ inputs.e2e_repo }}
+          E2E_REF:  ${{ steps.e2e.outputs.ref }}
+          SERVICE_REPO: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.issue.number }}
           HEAD_REF: ${{ steps.pr.outputs.head_ref }}
           HEAD_SHA: ${{ steps.pr.outputs.head_sha }}
         run: |
-          gh api "repos/${E2E_REPO}/dispatches" \
-            -f event_type=service-pr-e2e \
-            -f "client_payload[service_repo]=${{ github.repository }}" \
-            -f "client_payload[pr_number]=${{ github.event.issue.number }}" \
-            -f "client_payload[head_ref]=$HEAD_REF" \
-            -f "client_payload[head_sha]=$HEAD_SHA" \
-            -f "client_payload[requester]=${{ github.event.comment.user.login }}"
+          if ! gh workflow run service-pr-e2e.yml \
+            --repo "$E2E_REPO" \
+            --ref "$E2E_REF" \
+            -f service_repo="$SERVICE_REPO" \
+            -f pr_number="$PR_NUMBER" \
+            -f head_ref="$HEAD_REF" \
+            -f head_sha="$HEAD_SHA" \
+            -f requester="${{ github.event.comment.user.login }}"; then
+            GH_TOKEN="$CALLER_TOKEN" gh pr comment "$PR_NUMBER" --repo "$SERVICE_REPO" --body \
+              "❌ Could not start E2E on e2e ref \`${E2E_REF}\`. The \`service-pr-e2e.yml\` workflow (with its \`workflow_dispatch\` trigger) must exist on that ref — rebase the e2e branch on \`main\` if it's stale. (Also check \`E2E_DISPATCH_TOKEN\` has \`actions:write\` on \`${E2E_REPO}\`.)"
+            echo "::error::gh workflow run failed for ${E2E_REPO}@${E2E_REF}"
+            exit 1
+          fi
 
       - name: Confirm dispatch
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          E2E_SOURCE: ${{ steps.e2e.outputs.source }}
         run: |
           gh pr comment "${{ github.event.issue.number }}" \
             --repo "${{ github.repository }}" \
-            --body "🚀 E2E triggered against this branch. Results will be posted here when both suites finish."
+            --body "🚀 E2E triggered against this branch — e2e ref: ${E2E_SOURCE}. Results will be posted here when both suites finish."
