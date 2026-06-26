@@ -62,27 +62,19 @@ jobs:
           echo "head_ref=$(echo "$DATA" | jq -r .head.ref)" >> "$GITHUB_OUTPUT"
           echo "head_sha=$(echo "$DATA" | jq -r .head.sha)" >> "$GITHUB_OUTPUT"
 
-      # Optional: the comment may name an e2e branch/PR to run the suites FROM.
-      # Supported forms (first match wins), all defaulting to `main`:
-      #   - e2e PR URL : https://github.com/<e2e_repo>/pull/123
-      #   - bare PR ref: e2e#123
-      #   - branch tok : e2e@my/branch   or   e2e=my/branch
       - name: Resolve e2e ref
         id: e2e
         env:
-          # Resolving e2e PRs/branches reads the (private) e2e repo, so use the dispatch
-          # token. Posting an error back to the service PR uses the caller GITHUB_TOKEN.
           DISPATCH_TOKEN: ${{ secrets.E2E_DISPATCH_TOKEN }}
           CALLER_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           E2E_REPO: ${{ inputs.e2e_repo }}
           SERVICE_REPO: ${{ github.repository }}
           PR_NUMBER: ${{ github.event.issue.number }}
-          # Passed via env (never interpolated into the script) to avoid shell injection.
           COMMENT_BODY: ${{ github.event.comment.body }}
         run: |
           set -euo pipefail
 
-          fail() {  # post a clear error on the service PR, then stop
+          fail() {
             GH_TOKEN="$CALLER_TOKEN" gh pr comment "$PR_NUMBER" --repo "$SERVICE_REPO" --body "$1"
             echo "::error::${1}"
             exit 1
@@ -91,11 +83,8 @@ jobs:
           REF="main"
           SRC="default (main)"
 
-          # 1) e2e PR URL → resolve the PR's head branch
           PR_URL=$(printf '%s' "$COMMENT_BODY" | grep -oiE "github\.com/${E2E_REPO}/pull/[0-9]+" | head -n1 || true)
-          # 2) bare PR ref e2e#123
           PR_HASH=$(printf '%s' "$COMMENT_BODY" | grep -oiE 'e2e#[0-9]+' | head -n1 || true)
-          # 3) branch token e2e@branch or e2e=branch
           BR_TOK=$(printf '%s' "$COMMENT_BODY" | grep -oE 'e2e[@=][A-Za-z0-9._/-]+' | head -n1 || true)
 
           if [ -n "$PR_URL" ] || [ -n "$PR_HASH" ]; then
@@ -109,7 +98,7 @@ jobs:
             REF=$(echo "$DATA" | jq -r .head.ref)
             SRC="e2e PR #${E2E_PR} (branch \`${REF}\`)"
           elif [ -n "$BR_TOK" ]; then
-            REF="${BR_TOK#e2e?}"   # strip the 'e2e@' / 'e2e=' prefix
+            REF="${BR_TOK#e2e?}"
             GH_TOKEN="$DISPATCH_TOKEN" gh api "repos/${E2E_REPO}/branches/${REF}" >/dev/null 2>&1 \
               || fail "❌ Branch \`${REF}\` does not exist in \`${E2E_REPO}\`."
             SRC="branch \`${REF}\`"
@@ -130,8 +119,6 @@ jobs:
           HEAD_REF: ${{ steps.pr.outputs.head_ref }}
           HEAD_SHA: ${{ steps.pr.outputs.head_sha }}
         run: |
-          # workflow_dispatch (not repository_dispatch) so the suites run FROM $E2E_REF —
-          # the whole workflow file, including its reusable `uses:` calls, comes from that ref.
           if ! gh workflow run service-pr-e2e.yml \
             --repo "$E2E_REPO" \
             --ref "$E2E_REF" \
