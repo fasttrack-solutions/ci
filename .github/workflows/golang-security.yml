@@ -17,7 +17,7 @@ on:
       claude-file-glob:
         required: false
         type: string
-        default: "*.go *.js *.ts *.sql *.sh"
+        default: "*.go *.js *.ts *.sql *.sh *.yaml *.yml *.json"
         description: "Space-separated glob(s) passed to git diff for the Claude review"
     secrets:
       FT_SSH_KEY:
@@ -252,6 +252,7 @@ jobs:
           semgrep scan \
             --config p/golang \
             --config p/secrets \
+            --config p/jwt \
             --json \
             ${BASELINE_FLAG:+$BASELINE_FLAG} \
             --output semgrep-findings.json \
