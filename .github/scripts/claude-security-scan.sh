@@ -4,7 +4,8 @@ set -euo pipefail
 # Required env vars: ANTHROPIC_API_KEY, GITHUB_TOKEN, PR_NUMBER, BASE_SHA, REPO
 
 # Get diff of Go files only, capped at 50KB
-DIFF=$(git diff "${BASE_SHA}...HEAD" -- '*.go' 2>/dev/null | head -c 50000 || echo "(diff unavailable)")
+DIFF=$(git diff "${BASE_SHA}...HEAD" -- '*.go' 2>/dev/null || echo "")
+DIFF=${DIFF:0:50000}
 
 # Read existing findings — default to empty if artifacts were not uploaded
 TH_FINDINGS=$(cat trufflehog-findings.json 2>/dev/null || echo "")
@@ -54,7 +55,7 @@ RESPONSE=$(jq -n \
 FINDINGS=$(echo "$RESPONSE" | jq -r '.content[0].text')
 
 # Post comment only if findings exist
-if [ "$FINDINGS" != "NO_FINDINGS" ] && [ -n "$FINDINGS" ]; then
+if [ "$FINDINGS" != "NO_FINDINGS" ] && [ -n "$FINDINGS" ] && [ "$FINDINGS" != "null" ]; then
   gh pr comment "${PR_NUMBER}" \
     --repo "${REPO}" \
     --body "## Claude Security Review

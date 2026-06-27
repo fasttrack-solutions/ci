@@ -19,6 +19,8 @@ on:
         required: true
       FT_BITBUCKET_KNOWN_HOSTS:
         required: true
+      ANTHROPIC_API_KEY:
+        required: false
 jobs:
   govulncheck:
     runs-on: ubuntu-latest
@@ -192,7 +194,11 @@ jobs:
             --only-verified \
             --json \
             --no-update \
-            2>/dev/null > trufflehog-findings.json || true
+            2>/tmp/trufflehog-stderr > trufflehog-findings.json || {
+            echo "::error::TruffleHog scanner failed (exit $?). stderr:"
+            cat /tmp/trufflehog-stderr
+            exit 1
+          }
 
       - name: Fail if verified secrets found
         run: |
