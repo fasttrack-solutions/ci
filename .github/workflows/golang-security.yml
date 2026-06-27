@@ -336,16 +336,25 @@ jobs:
           IGNORE_FLAG=()
           [ -f .trivyignore ] && IGNORE_FLAG=(--ignorefile .trivyignore)
 
-          trivy config \
-            --severity HIGH,CRITICAL \
-            --format json \
-            --output trivy-findings.json \
-            --exit-code 0 \
-            "${IGNORE_FLAG[@]}" \
-            "${TARGETS[@]}" || {
-            echo "::error::Trivy scanner failed (exit $?)"
-            exit 1
-          }
+          # trivy config accepts only one target at a time — scan each and merge
+          TMP_SCAN=$(mktemp -d)
+          for target in "${TARGETS[@]}"; do
+            outfile="$TMP_SCAN/$(echo "$target" | tr '/' '_').json"
+            trivy config \
+              --severity HIGH,CRITICAL \
+              --format json \
+              --output "$outfile" \
+              --exit-code 0 \
+              "${IGNORE_FLAG[@]}" \
+              "$target" || {
+              echo "::error::Trivy scanner failed (exit $?) scanning $target"
+              exit 1
+            }
+          done
+          # Merge Results arrays from all per-target outputs into one file
+          jq -s '{"SchemaVersion":2,"Results":[.[] | .Results // [] | .[]] }' \
+            "$TMP_SCAN"/*.json > trivy-findings.json
+          rm -rf "$TMP_SCAN"
 
       - name: Fail if findings
         run: |
