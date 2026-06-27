@@ -277,20 +277,53 @@ jobs:
           path: semgrep-findings.json
           retention-days: 7
 
+  trivy:
+    name: trivy
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Source
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Install Trivy
+        run: |
+          curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh \
+            | sh -s -- -b /usr/local/bin v0.71.2
+
+      - name: Run Trivy IaC scan
+        run: |
+          trivy config \
+            --severity HIGH,CRITICAL \
+            --format json \
+            --output trivy-findings.json \
+            --ignorefile .trivyignore \
+            . 2>/dev/null || true
+
+      - name: Fail if findings
+        run: |
+          count=$(jq '[.Results // [] | .[].Misconfigurations // [] | .[]] | length' trivy-findings.json 2>/dev/null || echo 0)
+          if [ "$count" -gt 0 ]; then
+            echo "::error::Trivy found $count HIGH/CRITICAL IaC misconfiguration(s):"
+            jq -r '.Results // [] | .[].Misconfigurations // [] | .[] | "  [\(.Severity)] \(.AVDID // .ID): \(.Title)"' \
+              trivy-findings.json
+            exit 1
+          fi
+          echo "Trivy: no HIGH/CRITICAL IaC misconfigurations found."
+
   security-deterministic:
     name: security-deterministic
     runs-on: ubuntu-latest
-    needs: [trufflehog, semgrep]
+    needs: [trufflehog, semgrep, trivy]
     if: always()
     steps:
       - name: Check deterministic security jobs
         run: |
           th="${{ needs.trufflehog.result }}"
           sg="${{ needs.semgrep.result }}"
-          echo "trufflehog: $th  semgrep: $sg"
-          for result in "$th" "$sg"; do
+          tv="${{ needs.trivy.result }}"
+          echo "trufflehog: $th  semgrep: $sg  trivy: $tv"
+          for result in "$th" "$sg" "$tv"; do
             if [[ "$result" != "success" && "$result" != "skipped" ]]; then
-              echo "::error::Deterministic security check failed (trufflehog=$th semgrep=$sg)"
+              echo "::error::Deterministic security check failed (trufflehog=$th semgrep=$sg trivy=$tv)"
               exit 1
             fi
           done
@@ -299,7 +332,7 @@ jobs:
   claude:
     name: claude-advisory
     runs-on: ubuntu-latest
-    needs: [trufflehog, semgrep]
+    needs: [trufflehog, semgrep, trivy]
     if: always() && github.event_name == 'pull_request'
     permissions:
       contents: read
