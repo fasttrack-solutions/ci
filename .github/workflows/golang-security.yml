@@ -286,6 +286,7 @@ jobs:
     needs: [trufflehog, semgrep]
     if: always() && github.event_name == 'pull_request'
     permissions:
+      contents: read
       pull-requests: write
     steps:
       - name: Checkout Source
