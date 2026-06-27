@@ -14,6 +14,10 @@ inputs:
   ecr_aws_secret_key:
     description: "ECR AWS secret key"
     required: true
+  ecr_role_arn:
+    description: "ECR OIDC role to assume (default: FT github-actions-ecr). Empty falls back to static keys."
+    required: false
+    default: "arn:aws:iam::745106446559:role/github-actions-ecr"
   dockerhub_username:
     description: "Docker Hub username"
     required: true
@@ -41,8 +45,17 @@ inputs:
 runs:
   using: "composite"
   steps:
-    - name: Configure AWS credentials
-      uses: aws-actions/configure-aws-credentials@v1
+    # OIDC by default (assume github-actions-ecr); static keys only if ecr_role_arn is emptied.
+    # Requires id-token: write on the caller (all current callers grant it).
+    - name: Configure AWS credentials (OIDC)
+      if: inputs.ecr_role_arn != ''
+      uses: aws-actions/configure-aws-credentials@d979d5b3a71173a29b74b5b88418bfda9437d885 # v6.1.1
+      with:
+        role-to-assume: ${{ inputs.ecr_role_arn }}
+        aws-region: eu-west-1
+    - name: Configure AWS credentials (static fallback)
+      if: inputs.ecr_role_arn == ''
+      uses: aws-actions/configure-aws-credentials@d979d5b3a71173a29b74b5b88418bfda9437d885 # v6.1.1
       with:
         aws-access-key-id: ${{ inputs.ecr_aws_access_key_id }}
         aws-secret-access-key: ${{ inputs.ecr_aws_secret_key }}
@@ -50,16 +63,16 @@ runs:
 
     - name: Login to Amazon ECR
       id: login-ecr
-      uses: aws-actions/amazon-ecr-login@v1
+      uses: aws-actions/amazon-ecr-login@fa648b43de3d4d023bcb3f89ed6940096949c419 # v2.1.5
 
     - name: Docker Hub login
-      uses: docker/login-action@v3
+      uses: docker/login-action@4907a6ddec9925e35a0a9e82d7399ccc52663121 # v4.1.0
       with:
         username: ${{ inputs.dockerhub_username }}
         password: ${{ inputs.dockerhub_pull_token }}
 
     - name: DHI registry login
-      uses: docker/login-action@v3
+      uses: docker/login-action@4907a6ddec9925e35a0a9e82d7399ccc52663121 # v4.1.0
       with:
         registry: dhi.io
         username: ${{ inputs.dockerhub_username }}
@@ -74,7 +87,7 @@ runs:
         BUILD_NUMBER=$(($RUN_NUMBER + $START_FROM))
         echo "BUILD_NUMBER=$BUILD_NUMBER" >> $GITHUB_ENV
 
-    - uses: jwalton/gh-find-current-pr@v1
+    - uses: jwalton/gh-find-current-pr@f3d61b485d2801773f7a07b2aaa3306bd8f8e653 # v1.3.5
       id: findPr
       with:
         state: open
@@ -125,6 +138,33 @@ runs:
 
         echo "Successfully pushed manifest: ${MANIFEST_IMAGE}"
         docker manifest inspect "${MANIFEST_IMAGE}"
+
+    - name: Prepare OneClick PR comment fields
+      if: github.event_name == 'pull_request' && steps.findPr.outputs.number > 0 && inputs.github_token != ''
+      shell: bash
+      env:
+        IMAGE: ${{ inputs.image }}
+        PREFIX: ${{ inputs.tag-prefix }}
+      run: |
+        if [[ -n "$PREFIX" ]]; then
+          echo "SERVICE_LABEL=${PREFIX%-}" >> "$GITHUB_ENV"
+        else
+          echo "SERVICE_LABEL=$IMAGE" >> "$GITHUB_ENV"
+        fi
+        echo "COMMENT_TIMESTAMP=$(TZ='Europe/Stockholm' date '+%Y-%m-%d %H:%M:%S')" >> "$GITHUB_ENV"
+
+    - name: Comment OneClick PR image
+      if: github.event_name == 'pull_request' && steps.findPr.outputs.number > 0 && inputs.github_token != ''
+      uses: marocchino/sticky-pull-request-comment@0ea0beb66eb9baf113663a64ec522f60e49231c0 # v3.0.4
+      with:
+        GITHUB_TOKEN: ${{ inputs.github_token }}
+        header: "OneClick PR tag - ${{ inputs.image }}${{ inputs.tag-prefix != '' && format('-{0}', inputs.tag-prefix) || '' }}"
+        message: |
+          #### 🚀 OneClick PR image - ${{ env.SERVICE_LABEL }}
+          ```yml
+          ${{ inputs.tag-prefix }}oneclickpr-${{ steps.findPr.outputs.pr }}-${{ env.BUILD_NUMBER }}
+          ```
+          Updated at `${{ env.COMMENT_TIMESTAMP }}` from [CI run](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}?pr=${{ steps.findPr.outputs.number }}).
 
     - name: Create and push latest manifest
       if: inputs.latest_tag == 'true'

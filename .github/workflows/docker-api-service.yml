@@ -48,16 +48,35 @@ on:
       DOCKERHUB_PULL_TOKEN:
         required: true                   
 
+# GitHub Enterprise migration set the org-default GITHUB_TOKEN permissions to
+# "restricted" (contents: read only). Reusable workflows cannot elevate beyond
+# the caller, so we grant explicitly here:
+#   - contents:       actions/checkout
+#   - pull-requests:  docker-service.yml/create-manifest declares it
+#   - checks:         dorny/test-reporter in golang-ci.yml
+#   - id-token:       OIDC for any auth path that uses it
+#   - packages:       safe default if anything pushes to ghcr.io (we use ECR)
+permissions:
+  contents: write
+  pull-requests: write
+  checks: write
+  id-token: write
+  packages: write
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}-${{ inputs.image }}-${{ inputs.tag-prefix-service }}-${{ inputs.tag-prefix-api }}-${{ inputs.dockerfile-service }}-${{ inputs.dockerfile-api }}-${{ inputs.start-build-from }}-${{ inputs.dockerhub_username }}-${{ inputs.multi_arch }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   build-service:
     name: ${{ matrix.platform == 'linux/arm64' && 'build-service-arm64' || 'build-service' }}
     strategy:
       matrix:
-        include: ${{ fromJSON(inputs.multi_arch && '[{"platform":"linux/amd64","runner":"ubuntu-latest"},{"platform":"linux/arm64","runner":"ubuntu-arm64-latest"}]' || '[{"platform":"linux/amd64","runner":"ubuntu-latest"}]') }}
+        include: ${{ fromJSON(inputs.multi_arch && '[{"platform":"linux/amd64","runner":"ubuntu-latest"},{"platform":"linux/arm64","runner":"ubuntu-24.04-arm"}]' || '[{"platform":"linux/amd64","runner":"ubuntu-latest"}]') }}
     runs-on: ${{ matrix.runner }}
     steps:
     - name: Build & Publish
-      uses: fasttrack-solutions/ci/.github/actions/build-publish-docker@main
+      uses: fasttrack-solutions/ci/.github/actions/build-publish-docker@f11f6b2f3661031113fe96b888c4ac66a954fd87 # main
       with:
         image: ${{ inputs.image }}
         tag-prefix: ${{ inputs.tag-prefix-service }}
@@ -76,11 +95,11 @@ jobs:
     name: ${{ matrix.platform == 'linux/arm64' && 'build-api-arm64' || 'build-api' }}
     strategy:
       matrix:
-        include: ${{ fromJSON(inputs.multi_arch && '[{"platform":"linux/amd64","runner":"ubuntu-latest"},{"platform":"linux/arm64","runner":"ubuntu-arm64-latest"}]' || '[{"platform":"linux/amd64","runner":"ubuntu-latest"}]') }}
+        include: ${{ fromJSON(inputs.multi_arch && '[{"platform":"linux/amd64","runner":"ubuntu-latest"},{"platform":"linux/arm64","runner":"ubuntu-24.04-arm"}]' || '[{"platform":"linux/amd64","runner":"ubuntu-latest"}]') }}
     runs-on: ${{ matrix.runner }}
     steps:
     - name: Build & Publish
-      uses: fasttrack-solutions/ci/.github/actions/build-publish-docker@main
+      uses: fasttrack-solutions/ci/.github/actions/build-publish-docker@f11f6b2f3661031113fe96b888c4ac66a954fd87 # main
       with:
         image: ${{ inputs.image }}
         tag-prefix: ${{ inputs.tag-prefix-api }}
@@ -100,7 +119,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Create multi-arch manifest for service
-        uses: fasttrack-solutions/ci/.github/actions/create-manifest@main
+        uses: fasttrack-solutions/ci/.github/actions/create-manifest@ec023cb1c0618399f01248e8c313d35557a11d15 # main
         with:
           image: ${{ inputs.image }}
           start-build-from: ${{ inputs.start-build-from }}
@@ -116,7 +135,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Create multi-arch manifest for API
-        uses: fasttrack-solutions/ci/.github/actions/create-manifest@main
+        uses: fasttrack-solutions/ci/.github/actions/create-manifest@ec023cb1c0618399f01248e8c313d35557a11d15 # main
         with:
           image: ${{ inputs.image }}
           start-build-from: ${{ inputs.start-build-from }}

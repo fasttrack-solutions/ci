@@ -18,6 +18,10 @@ on:
       token:
         required: true
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}-${{ inputs.start-build-from }}-${{ inputs.is-library }}-${{ inputs.create-release }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   bump-version:
     runs-on: ubuntu-latest
@@ -33,7 +37,7 @@ jobs:
           echo $RUN_NUMBER
           echo $(($RUN_NUMBER+$START_FROM))
           echo BUILD_NUMBER=$(($RUN_NUMBER+$START_FROM)) >> $GITHUB_ENV
-      - uses: jwalton/gh-find-current-pr@v1
+      - uses: jwalton/gh-find-current-pr@f3d61b485d2801773f7a07b2aaa3306bd8f8e653 # v1.3.5
         id: findPr
         with:
           # Can be "open", "closed", or "all".  Defaults to "open".
@@ -41,7 +45,7 @@ jobs:
       - if: ${{ inputs.is-library == false && (github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main') }}
         name: Bump version and push tag (service)
         id: tag_version
-        uses: mathieudutour/github-tag-action@v6.0
+        uses: mathieudutour/github-tag-action@a22cf08638b34d5badda920f9daf6e72c477b07b # v6.2
         with:
           github_token: ${{ secrets.token }}
           custom_tag: oneclick-${{ env.BUILD_NUMBER }}
@@ -49,12 +53,12 @@ jobs:
       - if: ${{ inputs.is-library == true && (github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main') }}
         name: Bump version and push tag (library)
         id: tag_version_lib
-        uses: mathieudutour/github-tag-action@v5.6
+        uses: mathieudutour/github-tag-action@a22cf08638b34d5badda920f9daf6e72c477b07b # v6.2
         with:
           github_token: ${{ secrets.token }}
       - if: ${{ inputs.create-release == true && inputs.is-library == false && (github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main') }}
         name: Create a GitHub release (service)
-        uses: actions/create-release@v1
+        uses: actions/create-release@0cb9c9b65d5d1901c1f53e5e66eaf4afd303e70e # v1.1.4
         env:
           GITHUB_TOKEN: ${{ secrets.token }}
         with:
@@ -64,7 +68,7 @@ jobs:
       - if: ${{ inputs.create-release == true && inputs.is-library == true && (github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main') }}
         name: Create a GitHub release (library)
         id: create_release_lib
-        uses: actions/create-release@v1
+        uses: actions/create-release@0cb9c9b65d5d1901c1f53e5e66eaf4afd303e70e # v1.1.4
         env:
           GITHUB_TOKEN: ${{ secrets.token }}
         with:
@@ -79,7 +83,7 @@ jobs:
       - name: Bump version and push tag PR (service)
         if: ${{ inputs.is-library == false && (github.ref != 'refs/heads/master' || github.ref != 'refs/heads/main') && steps.findPr.outputs.number > 0 }}
         id: tag_version_pr
-        uses: mathieudutour/github-tag-action@v6.0
+        uses: mathieudutour/github-tag-action@a22cf08638b34d5badda920f9daf6e72c477b07b # v6.2
         with:
           github_token: ${{ secrets.token }}
           custom_tag: oneclickpr-${{ env.BUILD_NUMBER }}
@@ -87,14 +91,14 @@ jobs:
       - name: Bump version and push tag PR (library)
         if: ${{ inputs.is-library == true && (github.ref != 'refs/heads/master' || github.ref != 'refs/heads/main') && steps.findPr.outputs.number > 0 }}
         id: tag_version_pr_lib
-        uses: mathieudutour/github-tag-action@v6.0
+        uses: mathieudutour/github-tag-action@a22cf08638b34d5badda920f9daf6e72c477b07b # v6.2
         with:
           github_token: ${{ secrets.token }}
           custom_tag: pr-${{ env.BUILD_NUMBER }}
           tag_prefix: ""
       - name: Create a GitHub release PR (service)
         if: ${{ inputs.create-release == true && inputs.is-library == false && (github.ref != 'refs/heads/master' || github.ref != 'refs/heads/main') && steps.findPr.outputs.number > 0 }}
-        uses: actions/create-release@v1
+        uses: actions/create-release@0cb9c9b65d5d1901c1f53e5e66eaf4afd303e70e # v1.1.4
         env:
           GITHUB_TOKEN: ${{ secrets.token }}
         with:
@@ -103,7 +107,7 @@ jobs:
           body: ${{ steps.tag_version_pr.outputs.changelog }}
       - name: Create a GitHub release PR (library)
         if: ${{ inputs.create-release == true && inputs.is-library == true && (github.ref != 'refs/heads/master' || github.ref != 'refs/heads/main') && steps.findPr.outputs.number > 0 }}
-        uses: actions/create-release@v1
+        uses: actions/create-release@0cb9c9b65d5d1901c1f53e5e66eaf4afd303e70e # v1.1.4
         env:
           GITHUB_TOKEN: ${{ secrets.token }}
         with:
@@ -111,7 +115,7 @@ jobs:
       - name: Bump version and push tag Release Branch (service)
         if: ${{ inputs.is-library == false && contains(github.ref, 'release') }}
         id: tag_version_release
-        uses: mathieudutour/github-tag-action@v6.0
+        uses: mathieudutour/github-tag-action@a22cf08638b34d5badda920f9daf6e72c477b07b # v6.2
         with:
           github_token: ${{ secrets.token }}
           custom_tag: oneclickrelease-${{ env.BUILD_NUMBER }}
@@ -119,12 +123,12 @@ jobs:
       - name: Bump version and push tag Release Branch (library)
         if: ${{ inputs.is-library == true && contains(github.ref, 'release') }}
         id: tag_version_release_lib
-        uses: mathieudutour/github-tag-action@v6.0
+        uses: mathieudutour/github-tag-action@a22cf08638b34d5badda920f9daf6e72c477b07b # v6.2
         with:
           github_token: ${{ secrets.token }}
       - name: Create a GitHub release branch
         if: ${{inputs.create-release == true && contains(github.ref, 'release') }}
-        uses: actions/create-release@v1
+        uses: actions/create-release@0cb9c9b65d5d1901c1f53e5e66eaf4afd303e70e # v1.1.4
         env:
           GITHUB_TOKEN: ${{ secrets.token }}
         with:

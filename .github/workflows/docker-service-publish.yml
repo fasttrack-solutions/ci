@@ -48,12 +48,31 @@ on:
       DOCKERHUB_PULL_TOKEN:
         required: true              
 
+# GitHub Enterprise migration set the org-default GITHUB_TOKEN permissions to
+# "restricted" (contents: read only). Reusable workflows cannot elevate beyond
+# the caller, so we grant explicitly here:
+#   - contents:       actions/checkout
+#   - pull-requests:  docker-service.yml/create-manifest declares it
+#   - checks:         dorny/test-reporter in golang-ci.yml
+#   - id-token:       OIDC for any auth path that uses it
+#   - packages:       safe default if anything pushes to ghcr.io (we use ECR)
+permissions:
+  contents: write
+  pull-requests: write
+  checks: write
+  id-token: write
+  packages: write
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}-${{ inputs.image }}-${{ inputs.tag-prefix }}-${{ inputs.dockerfile }}-${{ inputs.build-args }}-${{ inputs.start-build-from }}-${{ inputs.git_fetch_submodules }}-${{ inputs.dockerhub_username }}-${{ inputs.multi_arch }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   create-manifest:
     runs-on: ubuntu-latest
     steps:
     - name: Create multi-arch manifest
-      uses: fasttrack-solutions/ci/.github/actions/create-manifest@main
+      uses: fasttrack-solutions/ci/.github/actions/create-manifest@ec023cb1c0618399f01248e8c313d35557a11d15 # main
       with:
         image: ${{ inputs.image }}
         tag-prefix: ${{ inputs.tag-prefix }}
