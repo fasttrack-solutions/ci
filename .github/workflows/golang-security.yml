@@ -336,16 +336,33 @@ jobs:
           IGNORE_FLAG=()
           [ -f .trivyignore ] && IGNORE_FLAG=(--ignorefile .trivyignore)
 
-          trivy config \
-            --severity HIGH,CRITICAL \
-            --format json \
-            --output trivy-findings.json \
-            --exit-code 0 \
-            "${IGNORE_FLAG[@]}" \
-            "${TARGETS[@]}" || {
-            echo "::error::Trivy scanner failed (exit $?)"
-            exit 1
-          }
+          # trivy config accepts only one target at a time, so scan each and merge.
+          # Name outputs by index (not by target path) so they never collide and
+          # never start with a dot, and collect them in an explicit array. A glob
+          # like "$TMP_SCAN"/*.json would silently miss a leading-dot file (with
+          # dotglob off, the runner default), e.g. target "." writes "..json".
+          TMP_SCAN=$(mktemp -d)
+          OUTFILES=()
+          i=0
+          for target in "${TARGETS[@]}"; do
+            outfile="$TMP_SCAN/scan-$i.json"
+            i=$((i + 1))
+            trivy config \
+              --severity HIGH,CRITICAL \
+              --format json \
+              --output "$outfile" \
+              --exit-code 0 \
+              "${IGNORE_FLAG[@]}" \
+              "$target" || {
+              echo "::error::Trivy scanner failed (exit $?) scanning $target"
+              exit 1
+            }
+            OUTFILES+=("$outfile")
+          done
+          # Merge Results arrays from every per-target output into one file
+          jq -s '{"SchemaVersion":2,"Results":[.[] | .Results // [] | .[]] }' \
+            "${OUTFILES[@]}" > trivy-findings.json
+          rm -rf "$TMP_SCAN"
 
       - name: Fail if findings
         run: |
