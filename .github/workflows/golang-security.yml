@@ -170,6 +170,49 @@ jobs:
           version: latest
           args: --timeout=10m
 
+  trufflehog:
+    name: trufflehog
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    steps:
+      - name: Checkout Source
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 0
+
+      - name: Install TruffleHog
+        run: |
+          curl -sSfL https://raw.githubusercontent.com/trufflesecurity/trufflehog/main/scripts/install.sh \
+            | sh -s -- -b /usr/local/bin v3.88.0
+
+      - name: Run TruffleHog
+        run: |
+          trufflehog git file://. \
+            --since-commit="${{ github.event.pull_request.base.sha }}" \
+            --only-verified \
+            --json \
+            --no-update \
+            2>/dev/null > trufflehog-findings.json || true
+
+      - name: Fail if verified secrets found
+        run: |
+          count=$(wc -l < trufflehog-findings.json)
+          if [ "$count" -gt 0 ]; then
+            echo "::error::TruffleHog found $count verified secret(s):"
+            jq -r '"  \(.DetectorName) in \(.SourceMetadata.Data.Git.file // "unknown")"' \
+              trufflehog-findings.json
+            exit 1
+          fi
+          echo "TruffleHog: no verified secrets found."
+
+      - name: Upload findings artifact
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: trufflehog-findings
+          path: trufflehog-findings.json
+          retention-days: 7
+
   security:
     name: security
     runs-on: ubuntu-latest
