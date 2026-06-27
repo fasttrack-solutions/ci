@@ -17,8 +17,8 @@ on:
       claude-file-glob:
         required: false
         type: string
-        default: "*.go"
-        description: "Space-separated glob(s) for the Claude diff (e.g. '*.go' or '*.ts *.vue')"
+        default: "*.go *.js *.ts *.sql *.sh"
+        description: "Space-separated glob(s) passed to git diff for the Claude review"
     secrets:
       FT_SSH_KEY:
         required: true
