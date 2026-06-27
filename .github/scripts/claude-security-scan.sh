@@ -14,7 +14,7 @@ SG_RESULTS=$(jq -r \
   semgrep-findings.json 2>/dev/null || echo "")
 
 # Build prompt
-PROMPT="You are a security reviewer analyzing a Go pull request diff.
+PROMPT="You are a security reviewer analyzing a pull request diff.
 
 The following issues were already found by automated scanners. Do NOT repeat them.
 
