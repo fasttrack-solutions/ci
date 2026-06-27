@@ -300,17 +300,52 @@ jobs:
     steps:
       - name: Checkout Source
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 0
+
+      - name: Install Trivy
+        run: |
+          curl -sSfL https://github.com/aquasecurity/trivy/releases/download/v0.71.2/trivy_0.71.2_Linux-64bit.tar.gz \
+            | tar xz -C /usr/local/bin trivy
 
       - name: Run Trivy IaC scan
-        uses: aquasecurity/trivy-action@57a97c7e7821a5776cebc9bb87c984fa69cba8f1 # v0.35.0
-        with:
-          scan-type: config
-          format: json
-          output: trivy-findings.json
-          severity: HIGH,CRITICAL
-          version: v0.71.2
-          exit-code: "0"
-          trivyignores: ${{ hashFiles('.trivyignore') != '' && '.trivyignore' || '' }}
+        run: |
+          # PR: scan only changed IaC files. Push to main: scan full repo.
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            BASE="${{ github.event.pull_request.base.sha }}"
+            mapfile -t CHANGED < <(git diff --name-only "$BASE"...HEAD \
+              -- '*.tf' '*.hcl' 'Dockerfile*' 'docker-compose*.yml' \
+                 'Chart.yaml' '*/values.yaml' '*/values*.yaml' \
+                 '*.k8s.yaml' '*.k8s.yml' \
+              2>/dev/null || true)
+            # Filter to files that still exist
+            TARGETS=()
+            for f in "${CHANGED[@]}"; do
+              [ -f "$f" ] && TARGETS+=("$f")
+            done
+            if [ "${#TARGETS[@]}" -eq 0 ]; then
+              echo "No IaC files changed — skipping Trivy scan."
+              echo '{"SchemaVersion":2,"Results":[]}' > trivy-findings.json
+              exit 0
+            fi
+            echo "Scanning ${#TARGETS[@]} changed IaC file(s): ${TARGETS[*]}"
+          else
+            TARGETS=(.)
+          fi
+
+          IGNORE_FLAG=()
+          [ -f .trivyignore ] && IGNORE_FLAG=(--ignorefile .trivyignore)
+
+          trivy config \
+            --severity HIGH,CRITICAL \
+            --format json \
+            --output trivy-findings.json \
+            --exit-code 0 \
+            "${IGNORE_FLAG[@]}" \
+            "${TARGETS[@]}" || {
+            echo "::error::Trivy scanner failed (exit $?)"
+            exit 1
+          }
 
       - name: Fail if findings
         run: |
