@@ -192,8 +192,8 @@ jobs:
 
       - name: Install TruffleHog
         run: |
-          curl -sSfL https://raw.githubusercontent.com/trufflesecurity/trufflehog/v3.88.0/scripts/install.sh \
-            | sh -s -- -b /usr/local/bin v3.88.0
+          curl -sSfL https://github.com/trufflesecurity/trufflehog/releases/download/v3.88.0/trufflehog_3.88.0_linux_amd64.tar.gz \
+            | tar xz -C /usr/local/bin trufflehog
 
       - name: Run TruffleHog
         run: |
@@ -301,26 +301,16 @@ jobs:
       - name: Checkout Source
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
-      - name: Install Trivy
-        run: |
-          curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/v0.71.2/contrib/install.sh \
-            | sh -s -- -b /usr/local/bin v0.71.2
-
       - name: Run Trivy IaC scan
-        run: |
-          IGNORE_FLAG=""
-          [ -f .trivyignore ] && IGNORE_FLAG="--ignorefile .trivyignore"
-          trivy config \
-            --severity HIGH,CRITICAL \
-            --format json \
-            --output trivy-findings.json \
-            ${IGNORE_FLAG:+$IGNORE_FLAG} \
-            .
-          rc=$?
-          if [ "$rc" -ne 0 ]; then
-            echo "::error::Trivy failed to run (exit $rc)"
-            exit 1
-          fi
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          scan-type: config
+          format: json
+          output: trivy-findings.json
+          severity: HIGH,CRITICAL
+          version: 0.71.2
+          exit-code: "0"
+          trivyignores: ${{ hashFiles('.trivyignore') != '' && '.trivyignore' || '' }}
 
       - name: Fail if findings
         run: |
