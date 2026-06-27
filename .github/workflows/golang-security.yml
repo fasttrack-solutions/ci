@@ -308,7 +308,7 @@ jobs:
           format: json
           output: trivy-findings.json
           severity: HIGH,CRITICAL
-          version: 0.71.2
+          version: v0.71.2
           exit-code: "0"
           trivyignores: ${{ hashFiles('.trivyignore') != '' && '.trivyignore' || '' }}
 
