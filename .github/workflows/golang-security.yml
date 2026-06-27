@@ -180,7 +180,6 @@ jobs:
   trufflehog:
     name: trufflehog
     runs-on: ubuntu-latest
-    if: github.event_name == 'pull_request'
     steps:
       - name: Checkout Source
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
@@ -194,8 +193,14 @@ jobs:
 
       - name: Run TruffleHog
         run: |
+          # PR: scan diff only. Push to main: scan full repo history.
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            SINCE_FLAG="--since-commit=${{ github.event.pull_request.base.sha }}"
+          else
+            SINCE_FLAG=""
+          fi
           trufflehog git file://. \
-            --since-commit="${{ github.event.pull_request.base.sha }}" \
+            ${SINCE_FLAG:+$SINCE_FLAG} \
             --only-verified \
             --json \
             --no-update \
@@ -227,7 +232,6 @@ jobs:
   semgrep:
     name: semgrep
     runs-on: ubuntu-latest
-    if: github.event_name == 'pull_request'
     steps:
       - name: Checkout Source
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
@@ -239,11 +243,17 @@ jobs:
 
       - name: Run Semgrep
         run: |
+          # PR: scan diff only. Push to main: scan full repo.
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            BASELINE_FLAG="--baseline-commit=${{ github.event.pull_request.base.sha }}"
+          else
+            BASELINE_FLAG=""
+          fi
           semgrep scan \
             --config p/golang \
             --config p/secrets \
             --json \
-            --baseline-commit="${{ github.event.pull_request.base.sha }}" \
+            ${BASELINE_FLAG:+$BASELINE_FLAG} \
             --output semgrep-findings.json \
             . 2>/dev/null || true
 
@@ -322,6 +332,11 @@ jobs:
           FILE_GLOB: ${{ inputs.claude-file-glob }}
         run: |
           set -euo pipefail
+
+          if [ -z "${ANTHROPIC_API_KEY:-}" ]; then
+            echo "ANTHROPIC_API_KEY not set — skipping Claude advisory."
+            exit 0
+          fi
 
           read -ra GLOBS <<< "${FILE_GLOB}"
           DIFF=$(git diff "${BASE_SHA}...HEAD" -- "${GLOBS[@]}" 2>/dev/null || echo "")
